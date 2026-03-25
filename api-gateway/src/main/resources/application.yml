@@ -1,0 +1,71 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: API-GATEWAY
+
+  cloud:
+    gateway:
+      routes:
+
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+
+        - id: entity-service
+          uri: lb://ENTITY-SERVICE
+          predicates:
+            - Path=/entity/**
+
+        - id: compliance-service
+          uri: lb://COMPLIANCE-SERVICE
+          predicates:
+            - Path=/compliance/**
+
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notification/**
+
+        - id: audit-service
+          uri: lb://AUDIT-SERVICE
+          predicates:
+            - Path=/audit/**
+
+        - id: archive-service
+          uri: lb://ARCHIVE-SERVICE
+          predicates:
+            - Path=/archive/**
+
+        - id: initiator-service
+          uri: lb://INITIATOR-SERVICE
+          predicates:
+            - Path=/initiator/**
+
+        - id: investor-service
+          uri: lb://INVESTOR-SERVICE
+          predicates:
+            - Path=/investor/**
+
+        - id: report-service
+          uri: lb://REPORT-SERVICE
+          predicates:
+            - Path=/report/**
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+            allowedHeaders: "*"
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka

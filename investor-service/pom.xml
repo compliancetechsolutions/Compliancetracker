@@ -28,7 +28,7 @@
 
 <dependency>
 <groupId>com.compliance</groupId>
-<artifactId>common-lib</artifactId>
+<artifactId>common-service</artifactId>
 </dependency>
 
 </dependencies>

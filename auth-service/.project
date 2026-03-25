@@ -3,6 +3,7 @@
 	<name>auth-service</name>
 	<comment></comment>
 	<projects>
+		<project>common-lib</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

@@ -24,7 +24,11 @@
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-starter-actuator</artifactId>
 </dependency>
-
+    <!-- Common Shared Library -->
+ <dependency>
+    <groupId>com.compliance</groupId>
+    <artifactId>common-service</artifactId>
+</dependency>
 </dependencies>
 
 </project>
