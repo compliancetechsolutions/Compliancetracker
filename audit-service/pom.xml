@@ -6,11 +6,11 @@
 <modelVersion>4.0.0</modelVersion>
 
 <parent>
-<groupId>com.compliance</groupId>
-<artifactId>compliance-platform</artifactId>
-<version>0.0.1-SNAPSHOT</version>
+    <groupId>com.compliance</groupId>
+    <artifactId>compliance-platform</artifactId>
+    <version>1.0.0</version>   <!-- MUST MATCH ROOT -->
+    <relativePath>../pom.xml</relativePath>
 </parent>
-
 <artifactId>audit-service</artifactId>
 
 <dependencies>
@@ -30,5 +30,22 @@
 		<artifactId>common-service</artifactId>
 		</dependency>
 </dependencies>
+<build>
+    <plugins>
 
+        <!-- 🔥 THIS IS THE FIX -->
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <executions>
+                <execution>
+                    <goals>
+                        <goal>repackage</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+
+    </plugins>
+</build>
 </project>

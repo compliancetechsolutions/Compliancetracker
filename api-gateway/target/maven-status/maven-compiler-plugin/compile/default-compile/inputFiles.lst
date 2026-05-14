@@ -1,8 +1,12 @@
+C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\config\GatewaySecurityConfig.java
 C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\filter\LoggingFilter.java
+C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\util\Role.java
+C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\controller\FallbackController.java
+C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\util\AppConstants.java
+C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\ApiGatewayApplication.java
 C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\config\CorsConfig.java
-C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\ApiGatewayApplication\ApiGatewayApplication.java
+C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\config\RouteRoleConfig.java
 C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\config\SwaggerGatewayConfig.java
 C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\filter\CorrelationIdFilter.java
 C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\util\JwtUtil.java
-C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\config\GatewayConfig.java
 C:\Users\HP\Compliance Space\compliance-platform\api-gateway\src\main\java\com\compliance\apigateway\filter\JwtAuthenticationFilter.java

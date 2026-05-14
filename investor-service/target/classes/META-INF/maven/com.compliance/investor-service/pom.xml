@@ -7,9 +7,10 @@
 <modelVersion>4.0.0</modelVersion>
 
 <parent>
-<groupId>com.compliance</groupId>
-<artifactId>compliance-platform</artifactId>
-<version>0.0.1-SNAPSHOT</version>
+    <groupId>com.compliance</groupId>
+    <artifactId>compliance-platform</artifactId>
+    <version>1.0.0</version>   <!-- MUST MATCH ROOT -->
+    <relativePath>../pom.xml</relativePath>
 </parent>
 
 <artifactId>investor-service</artifactId>

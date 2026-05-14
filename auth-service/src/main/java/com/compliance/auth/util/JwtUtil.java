@@ -1,107 +1,105 @@
 package com.compliance.auth.util;
 
-import java.security.Key;
+import java.nio.charset.StandardCharsets;
+
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
+
+import com.compliance.common.constants.AppConstants;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class JwtUtil {
 
-    private static final String SECRET =
-            "compliance-secret-compliance-secret-compliance-secret";
+	@Value("${jwt.secret}")
+	private String secret;
 
-    private final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
+	@Value("${jwt.access-token-expiry-ms:86400000}")
+	private long accessTokenExpiryMs;
 
-    // =========================
-    // ACCESS TOKEN
-    // =========================
-    public String generateAccessToken(String username, List<String> roles) {
+	@Value("${jwt.refresh-token-expiry-days:7}")
+	private int refreshTokenExpiryDays;
 
-        return Jwts.builder()
-                .setSubject(username)
-                .claim("roles", roles)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 30))
-                .signWith(key)
-                .compact();
-    }
+	private SecretKey signingKey;
 
-    // =========================
-    // REFRESH TOKEN
-    // =========================
-    public String generateRefreshToken(String username) {
+	@PostConstruct
+	public void init() {
+		Assert.hasLength(secret, "jwt.secret must not be blank");
+		Assert.isTrue(secret.getBytes(StandardCharsets.UTF_8).length >= 32,
+				"jwt.secret must be at least 256 bits (32 bytes)");
+		this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+		log.info("JWT signing key initialised");
+	}
 
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000))
-                .signWith(key)
-                .compact();
-    }
+	public String generateAccessToken(String username, UUID userId, List<String> roles) {
+		Date now = new Date();
+		return Jwts.builder().subject(username).claim(AppConstants.CLAIM_USER_ID, userId.toString())
+				.claim(AppConstants.CLAIM_ROLES, roles).issuedAt(now)
+				.expiration(new Date(now.getTime() + accessTokenExpiryMs)).signWith(signingKey).compact();
+	}
 
-    // =========================
-    // VALIDATE TOKEN
-    // =========================
-    public Claims validate(String token) {
+	public String generateRefreshToken(String username) {
+		Date now = new Date();
+		long expiryMs = (long) refreshTokenExpiryDays * 24L * 60 * 60 * 1000;
+		return Jwts.builder().subject(username).issuedAt(now).expiration(new Date(now.getTime() + expiryMs))
+				.signWith(signingKey).compact();
+	}
 
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-    }
 
-    // =========================
-    // EXTRACT USERNAME
-    // =========================
-    public String extractUsername(String token) {
-        return validate(token).getSubject();
-    }
+	public Claims validate(String token) {
+		return Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token).getPayload();
+	}
 
-    // =========================
-    // EXTRACT ROLES
-    // =========================
-    public List<String> extractRoles(String token) {
+	public String extractUsername(String token) {
+		return validate(token).getSubject();
+	}
 
-        Object roles = validate(token).get("roles");
+	public UUID extractUserId(String token) {
+		return UUID.fromString(validate(token).get(AppConstants.CLAIM_USER_ID, String.class));
+	}
 
-        if (roles instanceof List<?>) {
-            return ((List<?>) roles)
-                    .stream()
-                    .map(Object::toString)
-                    .toList();
-        }
+	public List<String> extractRoles(String token) {
+		Object roles = validate(token).get(AppConstants.CLAIM_ROLES);
+		if (roles instanceof List<?> list) {
+			return list.stream().map(Object::toString).toList();
+		}
+		return List.of();
+	}
 
-        return List.of();
-    }
+	public boolean isTokenExpired(String token) {
+		try {
+			return validate(token).getExpiration().before(new Date());
+		} catch (ExpiredJwtException e) {
+			return true;
+		} catch (MalformedJwtException | UnsupportedJwtException | SignatureException | IllegalArgumentException e) {
+			log.warn("Invalid JWT during expiry check: {}", e.getMessage());
+			return true;
+		}
+	}
+	 public long getAccessTokenExpirySeconds() {
+	        return accessTokenExpiryMs / 1000;
+	    }
 
-    // =========================
-    // CHECK EXPIRY
-    // =========================
-    public boolean isTokenExpired(String token) {
-
-        try {
-            return validate(token).getExpiration().before(new Date());
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
-    // =========================
-    // OPTIONAL: ROLE → SCOPES
-    // =========================
-    public List<String> getScopes(String role) {
-        return switch (role) {
-            case "ADMIN" -> List.of("system:write", "user:manage", "activity:all");
-            case "INVESTOR" -> List.of("report:read", "dashboard:view");
-            case "INITIATOR" -> List.of("activity:update", "tracker:read");
-            default -> List.of();
-        };
-    }
+	    // 🔥 OPTIONAL (dynamic remaining time)
+	    public long getRemainingSeconds(String token) {
+	        Date exp = validate(token).getExpiration();
+	        return (exp.getTime() - System.currentTimeMillis()) / 1000;
+	    }
 }

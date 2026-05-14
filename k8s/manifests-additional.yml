@@ -1,0 +1,448 @@
+# ── Kubernetes Manifests — Missing Services & Production Hardening ─────────────
+#
+# This file supplements the existing k8s/manifests.yml.
+# The original manifests only deployed 3 of 11 services.
+# Append this file's contents to manifests.yml, or apply separately:
+#
+#   kubectl apply -f k8s/manifests.yml -n compliance
+#   kubectl apply -f k8s/manifests-additional.yml -n compliance
+
+---
+# ── Compliance Service ────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-service
+  namespace: compliance
+  labels:
+    app: compliance-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: compliance-service
+  template:
+    metadata:
+      labels:
+        app: compliance-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8083"
+    spec:
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: compliance-service
+          image: compliance/compliance-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: compliance-config
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+            - name: SERVER_PORT
+              value: "8083"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-secrets
+                  key: JWT_SECRET
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-service-svc
+  namespace: compliance
+spec:
+  selector:
+    app: compliance-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+---
+# ── Notification Service ──────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: compliance
+  labels:
+    app: notification-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8084"
+    spec:
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: notification-service
+          image: compliance/notification-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: compliance-config
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+            - name: SERVER_PORT
+              value: "8084"
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-secrets
+                  key: MAIL_USERNAME
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-secrets
+                  key: MAIL_PASSWORD
+          resources:
+            requests:
+              memory: "384Mi"
+              cpu: "200m"
+            limits:
+              memory: "768Mi"
+              cpu: "750m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service-svc
+  namespace: compliance
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+---
+# ── Audit Service ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: compliance
+  labels:
+    app: audit-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app: audit-service
+  template:
+    metadata:
+      labels:
+        app: audit-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8085"
+    spec:
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: audit-service
+          image: compliance/audit-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: compliance-config
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+            - name: SERVER_PORT
+              value: "8085"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-secrets
+                  key: DB_PASSWORD
+          resources:
+            requests: { memory: "512Mi", cpu: "200m" }
+            limits:   { memory: "1Gi",   cpu: "750m" }
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8085 }
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8085 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service-svc
+  namespace: compliance
+spec:
+  selector:
+    app: audit-service
+  ports:
+    - port: 8085
+      targetPort: 8085
+---
+# ── Report Service ────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-service
+  namespace: compliance
+  labels:
+    app: report-service
+spec:
+  replicas: 1           # report generation is CPU-intensive; scale with HPA below
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app: report-service
+  template:
+    metadata:
+      labels:
+        app: report-service
+    spec:
+      terminationGracePeriodSeconds: 60   # longer for in-flight report generation
+      containers:
+        - name: report-service
+          image: compliance/report-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8089
+          envFrom:
+            - configMapRef:
+                name: compliance-config
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+            - name: SERVER_PORT
+              value: "8089"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-secrets
+                  key: DB_PASSWORD
+          resources:
+            requests: { memory: "512Mi", cpu: "500m" }
+            limits:   { memory: "2Gi",   cpu: "2000m" }  # reports are CPU-heavy
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8089 }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8089 }
+            initialDelaySeconds: 45
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-service-svc
+  namespace: compliance
+spec:
+  selector:
+    app: report-service
+  ports:
+    - port: 8089
+      targetPort: 8089
+---
+# ── HPAs for new services ─────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compliance-service-hpa
+  namespace: compliance
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compliance-service
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: report-service-hpa
+  namespace: compliance
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: report-service
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+---
+# ── PodDisruptionBudgets ──────────────────────────────────────────────────────
+# Ensures at least 1 replica remains available during voluntary disruptions
+# (node drains, cluster upgrades). Without PDBs, rolling updates + node drains
+# can briefly take all replicas offline simultaneously.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: compliance
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+  namespace: compliance
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auth-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: compliance-service-pdb
+  namespace: compliance
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: compliance-service
+---
+# ── NetworkPolicy ─────────────────────────────────────────────────────────────
+# Restricts inter-service traffic: downstream services must only receive
+# traffic from the api-gateway or discovery-server, not from external pods.
+# This prevents a compromised pod from directly calling internal services.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-services
+  namespace: compliance
+spec:
+  # All services (except gateway and discovery) only accept ingress from gateway
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - auth-service
+          - entity-service
+          - compliance-service
+          - notification-service
+          - audit-service
+          - archive-service
+          - report-service
+          - investor-service
+          - initiator-service
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from api-gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+    # Allow traffic from discovery-server (health checks)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: discovery-server
+    # Allow Prometheus scraping from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+---
+# ── Updated ConfigMap — all services and ports ────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-config
+  namespace: compliance
+data:
+  DB_USERNAME:     "postgres"
+  DB_URL:          "jdbc:postgresql://postgres-svc:5432/compliance"
+  EUREKA_URL:      "http://discovery-server-svc:8761/eureka"
+  LOG_LEVEL:       "INFO"
+  TRACE_SAMPLING:  "0.1"
+  ALLOWED_ORIGINS: "https://app.example.com"
+  # API info for Swagger UI
+  API_CONTACT_NAME:        "Compliance Platform Team"
+  API_CONTACT_EMAIL:       "support@example.com"
+  API_SERVER_URL:          "https://api.example.com"
+  API_SERVER_DESCRIPTION:  "Production"

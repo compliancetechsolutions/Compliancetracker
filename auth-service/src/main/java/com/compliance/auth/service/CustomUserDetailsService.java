@@ -1,55 +1,76 @@
 package com.compliance.auth.service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
 
-import com.compliance.auth.entity.Permission;
 import com.compliance.auth.entity.Role;
 import com.compliance.auth.entity.User;
 import com.compliance.auth.entity.UserRole;
 import com.compliance.auth.repository.UserRepository;
 
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    @Autowired
-    private UserRepository userRepo;
+    private final UserRepository userRepo;
 
     @Override
-    public UserDetails loadUserByUsername(String username) {
+    @Transactional
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
 
-        User user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        User user = userRepo.findByUsernameWithRoles(username)
+                .orElseThrow(() ->
+                        new UsernameNotFoundException("User not found: " + username));
 
-        List<GrantedAuthority> authorities = new ArrayList<>();
+        System.out.println("USER FOUND = " + user.getUsername());
+        System.out.println("DB HASH = " + user.getPasswordHash());
 
-        // 🔥 ROLE + PERMISSION LOADING
+        Set<GrantedAuthority> authorities = new HashSet<>();
+
         for (UserRole ur : user.getUserRoles()) {
 
             Role role = ur.getRole();
-            
-           
 
-            // ROLE
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getRoleName()));
+            authorities.add(
+                    new SimpleGrantedAuthority(
+                            "ROLE_" + role.getRoleName()
+                    )
+            );
 
-            // PERMISSIONS
-            for (Permission p : role.getPermissions()) {
-                authorities.add(new SimpleGrantedAuthority(p.getPermissionName()));
-            }
+            role.getRolePermissions().forEach(rp ->
+                    authorities.add(
+                            new SimpleGrantedAuthority(
+                                    rp.getPermission().getPermissionName()
+                            )
+                    )
+            );
+            System.out.println(
+            	    "MATCHES = " +
+            	    new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+            	        .matches(
+            	            "password",
+            	            user.getPasswordHash()
+            	        )
+            	);
         }
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPasswordHash(),
-                authorities
-        );
-    }}
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getUsername())
+                .password(user.getPasswordHash())
+                .authorities(authorities)
+                .accountExpired(false)
+                .accountLocked(false)
+                .credentialsExpired(false)
+                .disabled(false)
+                .build();
+    }
+}

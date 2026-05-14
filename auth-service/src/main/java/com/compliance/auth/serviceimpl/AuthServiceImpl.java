@@ -4,11 +4,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.compliance.auth.dto.LoginRequestDto;
 import com.compliance.auth.dto.LoginResponseDto;
 import com.compliance.auth.entity.LoginHistory;
 import com.compliance.auth.entity.RefreshToken;
@@ -20,167 +26,199 @@ import com.compliance.auth.repository.UserRepository;
 import com.compliance.auth.repository.UserSessionRepository;
 import com.compliance.auth.service.AuthService;
 import com.compliance.auth.util.JwtUtil;
+import com.compliance.common.exception.BaseException;
 import com.compliance.common.exception.UnauthorizedException;
+import com.compliance.enums.ErrorCode;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-	@Autowired
-	private AuthenticationManager authenticationManager;
-	@Autowired
-	private UserRepository userRepo;
-	@Autowired
-	private RefreshTokenRepository refreshRepo;
-	@Autowired
-	private UserSessionRepository sessionRepo;
-	@Autowired
-	private LoginHistoryRepository loginRepo;
-	@Autowired
-	private JwtUtil jwtUtil;
+	private final AuthenticationManager authManager;
+	private final UserRepository userRepo;
+	private final RefreshTokenRepository refreshRepo;
+	private final UserSessionRepository sessionRepo;
+	private final LoginHistoryRepository loginRepo;
+	private final JwtUtil jwtUtil;
 
-	// 🔐 LOGIN
+	// ── LOGIN ─────────────────────────────────────────────────────────────────
 	@Override
-	public LoginResponseDto login(String username, String password, String ip) {
+	@Transactional
+	public LoginResponseDto login(LoginRequestDto request, String ip) {
+
+		String username = request.getUsername().trim().toLowerCase();
 
 		try {
-			authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-		} catch (Exception e) {
-			loginRepo.save(LoginHistory.failed(username, ip));
-			throw new UnauthorizedException("Invalid credentials");
-		}
-//create custome exeption for invalid user
-		User user = userRepo.findByUsername(username).orElseThrow(() -> new UnauthorizedException("User not found"));
+			authManager.authenticate(new UsernamePasswordAuthenticationToken(username, request.getPassword()));
 
-		List<String> roles = user.getUserRoles().stream().map(ur -> ur.getRole().getRoleName()).toList();
+			User user = userRepo.findByUsernameIgnoreCase(username) // ✅ FIX
+					.orElseThrow(() -> new UnauthorizedException(ErrorCode.AUTH_INVALID_CREDENTIALS));
 
-		if (roles.isEmpty()) {
+			List<String> roles = extractRoles(user);
+
+			if (roles == null || roles.isEmpty()) {
+				throw new UnauthorizedException(ErrorCode.AUTH_NO_ROLES);
+			}
+
+			String accessToken = jwtUtil.generateAccessToken(user.getUsername(), user.getUserId(), roles);
+			String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+
+			refreshRepo.save(RefreshToken.builder().tokenId(UUID.randomUUID()).userId(user.getUserId())
+					.token(hash(refreshToken)).expiryTime(LocalDateTime.now().plusDays(7)).revoked(false).build());
+
+			sessionRepo.save(UserSession.builder().sessionId(UUID.randomUUID()).userId(user.getUserId())
+					.jwtToken(accessToken).sessionStart(LocalDateTime.now()).active(true).build());
+
+			loginRepo.save(LoginHistory.success(user.getUserId(), ip));
+
+			log.info("Successful login userId={} roles={}", user.getUserId(), roles);
+
+			return buildResponse(accessToken, refreshToken, user, roles);
 			
-			
-			throw new UnauthorizedException("No roles assigned");
+		} catch (BadCredentialsException ex) {
+
+		    log.warn("Failed login username={} ip={}", username, ip);
+
+		    recordFailedLogin(username, ip);
+
+		    throw new UnauthorizedException(
+		            ErrorCode.AUTH_INVALID_CREDENTIALS
+		    );
+
+		} catch (UsernameNotFoundException ex) {
+
+		    log.warn("User not found username={}", username);
+
+		    throw new UnauthorizedException(
+		            ErrorCode.AUTH_INVALID_CREDENTIALS
+		    );
+
+		} catch (DisabledException ex) {
+
+		    throw new UnauthorizedException(
+		            ErrorCode.AUTH_ACCOUNT_DISABLED
+		    );
+
+		} catch (LockedException ex) {
+
+		    throw new UnauthorizedException(
+		            ErrorCode.AUTH_ACCOUNT_LOCKED
+		    );
+
+		} catch (Exception ex) {
+
+		    log.error("🔥 REAL LOGIN ERROR username={}", username, ex);
+
+		    throw new BaseException(ErrorCode.INTERNAL_SERVER_ERROR);
 		}
-
-		String accessToken = jwtUtil.generateAccessToken(username, roles);
-		String refreshToken = jwtUtil.generateRefreshToken(username);
-
-		// 🔐 HASH TOKEN
-		String hashedToken = hash(refreshToken);
-
-		RefreshToken token = new RefreshToken();
-		token.setTokenId(UUID.randomUUID());
-		token.setUserId(user.getUserId());
-		token.setToken(hashedToken);
-		token.setExpiryTime(LocalDateTime.now().plusDays(7));
-		token.setRevoked(false);
-
-		refreshRepo.save(token);
-
-		UserSession session = new UserSession();
-		session.setSessionId(UUID.randomUUID());
-		session.setUserId(user.getUserId());
-		session.setJwtToken(accessToken);
-		session.setSessionStart(LocalDateTime.now());
-		session.setActive(true);
-
-		sessionRepo.save(session);
-
-		loginRepo.save(LoginHistory.success(user.getUserId(), ip));
-
-		// ✅ FIXED RESPONSE
-		LoginResponseDto response = new LoginResponseDto();
-		response.setAccessToken(accessToken);
-		response.setRefreshToken(refreshToken);
-
-		return response;
 	}
-
-	// 🔄 REFRESH
+	// ── REFRESH ───────────────────────────────────────────────────────────────
 	@Override
-	public LoginResponseDto refresh(String refreshToken) {
+	@Transactional
+	public LoginResponseDto refresh(String rawRefreshToken) {
 
-		String hashed = hash(refreshToken);
+		String hashedToken = hash(rawRefreshToken);
 
-		RefreshToken token = refreshRepo.findByToken(hashed)
-				.orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+		RefreshToken stored = refreshRepo.findByToken(hashedToken)
+				.orElseThrow(() -> new UnauthorizedException(ErrorCode.AUTH_TOKEN_REVOKED));
 
-		if (token.isRevoked() || token.getExpiryTime().isBefore(LocalDateTime.now())) {
-			throw new UnauthorizedException("Token expired/revoked");
-		}
-//Change to unauthicatedexception
-		User user = userRepo.findById(token.getUserId()).orElseThrow(() -> new UnauthorizedException("User not found"));
-		List<String> roles = user.getUserRoles().stream().map(ur -> ur.getRole().getRoleName()).toList();
-		if (token.isRevoked()) {
-			handleTokenReuse(token.getUserId());
-			throw new UnauthorizedException("Refresh token reuse detected");
+		// Token-reuse detection (refresh token rotation)
+		if (stored.isRevoked()) {
+			log.warn("Refresh token reuse detected — revoking all sessions userId={}", stored.getUserId());
+			revokeAllTokensAndSessions(stored.getUserId());
+			throw new UnauthorizedException(ErrorCode.AUTH_TOKEN_REUSE);
 		}
 
-		// 3. EXPIRY CHECK
-		if (token.getExpiryTime().isBefore(LocalDateTime.now())) {
-			throw new UnauthorizedException("Token expired");
+		if (stored.isExpired()) {
+			throw new UnauthorizedException(ErrorCode.AUTH_TOKEN_EXPIRED);
 		}
 
-		// 🔁 ROTATE OLD TOKEN
-		token.setRevoked(true);
-		refreshRepo.save(token);
+		User user = userRepo.findById(stored.getUserId())
+				.orElseThrow(() -> new UnauthorizedException(ErrorCode.USER_NOT_FOUND));
 
-		// 🔁 GENERATE NEW REFRESH TOKEN
+		List<String> roles = extractRoles(user);
+
+		// Rotate: revoke old, issue new
+		stored.setRevoked(true);
+		refreshRepo.save(stored);
+
+		String newAccess = jwtUtil.generateAccessToken(user.getUsername(), user.getUserId(), roles);
 		String newRefresh = jwtUtil.generateRefreshToken(user.getUsername());
 
-		RefreshToken newToken = new RefreshToken();
-		newToken.setTokenId(UUID.randomUUID());
-		newToken.setUserId(user.getUserId());
-		newToken.setToken(hash(newRefresh));
-		newToken.setExpiryTime(LocalDateTime.now().plusDays(7));
-		newToken.setRevoked(false);
+		refreshRepo.save(RefreshToken.builder().tokenId(UUID.randomUUID()).userId(user.getUserId())
+				.token(hash(newRefresh)).expiryTime(LocalDateTime.now().plusDays(7)).revoked(false).build());
 
-		refreshRepo.save(newToken);
+		log.info("Token refreshed userId={}", user.getUserId());
 
-		// 🔐 NEW ACCESS TOKEN
-		String accessToken = jwtUtil.generateAccessToken(user.getUsername(), roles);
-
-		// ✅ FIXED RESPONSE
-		LoginResponseDto response = new LoginResponseDto();
-		response.setAccessToken(accessToken);
-		response.setRefreshToken(newRefresh);
-
-		return response;
+		return buildResponse(newAccess, newRefresh, user, roles);
 	}
 
-	// 🚪 LOGOUT
+	// ── LOGOUT ────────────────────────────────────────────────────────────────
 	@Override
-	public void logout(String refreshToken) {
+	@Transactional
+	public void logout(String rawRefreshToken) {
 
-		String hashed = hash(refreshToken);
+		String hashedToken = hash(rawRefreshToken);
 
-		RefreshToken token = refreshRepo.findByToken(hashed)
-				.orElseThrow(() -> new UnauthorizedException("Invalid token"));
+		RefreshToken stored = refreshRepo.findByToken(hashedToken)
+				.orElseThrow(() -> new UnauthorizedException(ErrorCode.AUTH_TOKEN_REVOKED));
 
-		token.setRevoked(true);
-		refreshRepo.save(token);
+		UUID userId = stored.getUserId();
 
-		sessionRepo.findByUserIdAndActiveTrue(token.getUserId()).forEach(session -> {
-			session.setSessionEnd(LocalDateTime.now());
-			session.setActive(false);
+		// ✅ revoke this refresh token
+		stored.setRevoked(true);
+		refreshRepo.save(stored);
+
+		// ✅ deactivate all active sessions for this user
+		List<UserSession> sessions = sessionRepo.findByUserIdAndActiveTrue(userId);
+
+		sessions.forEach(s -> {
+			s.setActive(false);
+			s.setSessionEnd(LocalDateTime.now());
 		});
+
+		sessionRepo.saveAll(sessions);
+
+		log.info("User logged out userId={}", userId);
+	}
+	// ── HELPERS ───────────────────────────────────────────────────────────────
+
+	/** Separate transaction so the failure record always persists. */
+	@Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+	protected void recordFailedLogin(String username, String ip) {
+		UUID failedUserId = userRepo.findByUsername(username).map(User::getUserId).orElse(null);
+		loginRepo.save(LoginHistory.failed(failedUserId, ip));
 	}
 
-	private void handleTokenReuse(UUID userId) {
+	private void revokeAllTokensAndSessions(UUID userId) {
+		List<RefreshToken> tokens = refreshRepo.findByUserIdAndRevokedFalse(userId);
+		tokens.forEach(t -> t.setRevoked(true));
+		refreshRepo.saveAll(tokens);
 
-		// 🚨 Revoke ALL refresh tokens
-		refreshRepo.findByUserId(userId).forEach(t -> {
-			t.setRevoked(true);
-			refreshRepo.save(t);
+		List<UserSession> sessions = sessionRepo.findByUserIdAndActiveTrue(userId);
+		sessions.forEach(s -> {
+			s.setActive(false);
+			s.setSessionEnd(LocalDateTime.now());
 		});
-
-		// 🚨 Kill all sessions
-		sessionRepo.findByUserIdAndActiveTrue(userId).forEach(session -> {
-			session.setActive(false);
-			session.setSessionEnd(LocalDateTime.now());
-			sessionRepo.save(session);
-		});
+		sessionRepo.saveAll(sessions);
 	}
 
-	// 🔐 HASH FUNCTION
+	private List<String> extractRoles(User user) {
+
+		return user.getUserRoles().stream().map(ur -> "ROLE_" + ur.getRole().getRoleName()).toList();
+	}
+
+	private LoginResponseDto buildResponse(String accessToken, String refreshToken, User user, List<String> roles) {
+		return LoginResponseDto.builder().accessToken(accessToken).refreshToken(refreshToken).userId(user.getUserId())
+				.username(user.getUsername()).roles(roles).expiresIn(jwtUtil.getAccessTokenExpirySeconds()).build();
+	}
+
+	/** SHA-256 — safe for storing in DB index; never store raw refresh tokens. */
 	private String hash(String token) {
-		return org.apache.commons.codec.digest.DigestUtils.sha256Hex(token);
+		return DigestUtils.sha256Hex(token);
 	}
 }

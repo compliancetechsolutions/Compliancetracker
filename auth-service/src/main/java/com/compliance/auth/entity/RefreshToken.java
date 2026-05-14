@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -23,21 +22,26 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
 public class RefreshToken extends BaseEntity {
-	@Id
-	@Column(name = "token_id")
-	private UUID tokenId;
 
-	@Column(name = "user_id")
-	private UUID userId;
+    @Id
+    @Column(name = "token_id")
+    private UUID tokenId;
 
-	@Column(columnDefinition = "TEXT")
-	private String token;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-	@Column(name = "expiry_time")
-	private LocalDateTime expiryTime;
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String token;
 
-	private boolean revoked;
+    @Column(name = "expiry_time", nullable = false)
+    private LocalDateTime expiryTime;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean revoked = false;
+
+    public boolean isExpired() {
+        return expiryTime.isBefore(LocalDateTime.now());
+    }
 }

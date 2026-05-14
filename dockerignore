@@ -1,0 +1,11 @@
+# Exclude all compiled output — Docker must build from source.
+# Without this, the COPY .. . step in the Dockerfile copies pre-built jars
+# into the build context. Maven then sees existing artifacts and may skip
+# re-resolving dependencies, so new pom.xml changes (like adding
+# springdoc-webflux) are silently ignored in the final image.
+
+**/target/
+**/.idea/
+**/*.iml
+**/.git/
+**/node_modules/

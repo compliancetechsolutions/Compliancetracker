@@ -1,0 +1,130 @@
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+  compression:
+    enabled: true
+    mime-types: application/json
+
+  http2:
+    enabled: false   # 🔥 IMPORTANT
+
+spring:
+  application:
+    name: auth-service
+
+  web:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: "*"
+      allowed-headers: "*"
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/compliance}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Zaq@12wsx#}
+    hikari:
+      pool-name: auth-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        default_schema: auth_schema
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    schemas: auth_schema
+    baseline-on-migrate: true
+
+jwt:
+  # 🔥 FIXED — MUST be 32+ characters
+  secret: ${JWT_SECRET}
+  access-token-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:604800000}
+  refresh-token-expiry-days: ${JWT_REFRESH_EXPIRY_DAYS:7}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: false
+    registry-fetch-interval-seconds: 10
+    initial-instance-info-replication-interval-seconds: 5
+
+  instance:
+    prefer-ip-address: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+swagger:
+  gateway-url: ${GATEWAY_URL:http://localhost:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+  tracing:
+    enabled: false
+    sampling:
+      probability: 0.0
+
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.compliance: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: jdbc:postgresql://postgres:5432/compliance
+    username: postgres
+    password: Zaq@12wsx#
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:8761/eureka
+    register-with-eureka: true
+    fetch-registry: false

@@ -1,19 +1,23 @@
 package com.compliance.common.exception;
 
-import org.springframework.http.HttpStatus;
+import com.compliance.enums.ErrorCode;
 
-import lombok.EqualsAndHashCode;
-@EqualsAndHashCode(callSuper = true)
+/**
+ * Thrown when a requested resource does not exist (or has been soft-deleted).
+ * Maps to HTTP 404.
+ */
 public class ResourceNotFoundException extends BaseException {
-	 /**
+
+    /**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 127595026576423431L;
 
-	 public ResourceNotFoundException(String resource, Long id) {
-	        super(resource + " not found with id " + id,
-	                "RESOURCE_NOT_FOUND",
-	                HttpStatus.NOT_FOUND);
-	    }
+	public ResourceNotFoundException(ErrorCode errorCode, Object id) {
+        super(errorCode, errorCode.getMessage() + " [id=" + id + "]");
+    }
 
+    public ResourceNotFoundException(ErrorCode errorCode) {
+        super(errorCode);
+    }
 }

@@ -1,0 +1,110 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: compliance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Zaq@12wsx#
+    ports:
+      - "5433:5432"   # 🔥 FIXED (was 5432)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --requirepass devpassword
+    ports:
+      - "6379:6379"
+    restart: always
+
+  eureka:
+    build:
+      context: ..
+      dockerfile: discovery-server/Dockerfile
+    container_name: eureka
+    ports:
+      - "8761:8761"
+    volumes:
+      - ~/.m2:/root/.m2
+    restart: always
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      EUREKA_URL: http://eureka:8761/eureka
+      DB_URL: jdbc:postgresql://postgres:5432/compliance
+      DB_USERNAME: postgres
+      DB_PASSWORD: Zaq@12wsx#
+      JWT_SECRET: my-super-secret-key-12345678901234567890
+    volumes:
+      - ~/.m2:/root/.m2
+    depends_on:
+      - postgres
+      - eureka
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  entity-service:
+    build:
+      context: ..
+      dockerfile: entity-service/Dockerfile
+    container_name: entity-service
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_URL: http://eureka:8761/eureka
+      DB_URL: jdbc:postgresql://postgres:5432/compliance
+      DB_USERNAME: postgres
+      DB_PASSWORD: Zaq@12wsx#
+    volumes:
+      - ~/.m2:/root/.m2
+    depends_on:
+      - postgres
+      - eureka
+    restart: always
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_URL: http://eureka:8761/eureka
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: devpassword
+      JWT_SECRET: my-super-secret-key-12345678901234567890
+    volumes:
+      - ~/.m2:/root/.m2
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      entity-service:
+        condition: service_started
+      redis:
+        condition: service_started
+      eureka:
+        condition: service_started
+    command: ["sh", "-c", "sleep 25 && java -jar /app/app.jar"]
+    restart: always
+
+volumes:
+  postgres_data:

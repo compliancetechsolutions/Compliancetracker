@@ -9,48 +9,50 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "login_history", schema = "auth_schema")
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@NoArgsConstructor
 public class LoginHistory extends BaseEntity {
 
-	@Id
-	@Column(name = "login_id")
-	private UUID loginId;
+    @Id
+    @Column(name = "login_id")
+    private UUID loginId;
 
-	@Column(name = "user_id")
-	private UUID userId;
+    @Column(name = "user_id")
+    private UUID userId;
 
-	private LocalDateTime loginTime;
-	private String ipAddress;
-	private Boolean success;
-	
-	
-	// ✅ SUCCESS FACTORY
+    @Column(name = "login_time", nullable = false)
+    private LocalDateTime loginTime;
+
+    @Column(name = "ip_address", length = 100)
+    private String ipAddress;
+
+    @Column(nullable = false)
+    private Boolean success;
+
     public static LoginHistory success(UUID userId, String ip) {
-        LoginHistory log = new LoginHistory();
-        log.setLoginId(UUID.randomUUID());
-        log.setUserId(userId);
-        log.setLoginTime(LocalDateTime.now());
-        log.setIpAddress(ip);
-        log.setSuccess(true);
-        return log;
+        LoginHistory h = new LoginHistory();
+        h.setLoginId(UUID.randomUUID());
+        h.setUserId(userId);
+        h.setLoginTime(LocalDateTime.now());
+        h.setIpAddress(ip);
+        h.setSuccess(true);
+        return h;
     }
 
-    // ✅ FAILED FACTORY
-    public static LoginHistory failed(String username, String ip) {
-        LoginHistory log = new LoginHistory();
-        log.setLoginId(UUID.randomUUID());
-        log.setUserId(null); // user unknown
-        log.setLoginTime(LocalDateTime.now());
-        log.setIpAddress(ip);
-        log.setSuccess(false);
-        return log;
+    public static LoginHistory failed(UUID userId, String ip) {
+        LoginHistory h = new LoginHistory();
+        h.setLoginId(UUID.randomUUID());
+        h.setUserId(userId);
+        h.setLoginTime(LocalDateTime.now());
+        h.setIpAddress(ip);
+        h.setSuccess(false);
+        return h;
     }
-	
-	
 }

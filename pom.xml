@@ -1,93 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-	<modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.compliance</groupId>
-	<artifactId>compliance-platform</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<packaging>pom</packaging>
+    <groupId>com.compliance</groupId>
+    <artifactId>compliance-platform</artifactId>
 
-	<name>Compliance Platform</name>
+    <!--
+    ══════════════════════════════════════════════════════════════════════
+    VERSION STRATEGY — READ BEFORE CHANGING
+    ══════════════════════════════════════════════════════════════════════
+    The parent version must match exactly what all child pom <parent>
+    blocks declare. The original project mixed two values:
+      - Root pom declared: 1.0.0
+      - ALL child poms declared parent version: 0.0.1-SNAPSHOT
+    Maven resolves child poms by looking up the parent GAV in the local
+    repository. If the parent was never installed under that GAV, Maven
+    fails with "Missing artifact com.compliance:compliance-platform:pom:1.0.0"
+    and consequently "Missing artifact com.compliance:common-service:jar:1.0.0".
 
-	<!-- Spring Boot Parent -->
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.3.2</version>
-		<relativePath />
-	</parent>
+    FIX: Align all poms to the same version. We use 1.0.0 throughout.
+    After changing this file, run:
+        mvn clean install -DskipTests
+    from the root directory to install common-service into .m2 before
+    opening individual service projects in your IDE.
+    ══════════════════════════════════════════════════════════════════════
+    -->
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>Compliance Platform</name>
 
-	<!-- Global properties -->
-	<properties>
-		<java.version>21</java.version>
-		<spring-cloud.version>2023.0.2</spring-cloud.version>
-	</properties>
+    <modules>
+        <module>common-service</module>
+        <module>discovery-server</module>
+        <module>api-gateway</module>
+        <module>auth-service</module>
+        <module>entity-service</module>
+        <module>compliance-service</module>
+        <module>notification-service</module>
+        <module>audit-service</module>
+        <module>archive-service</module>
+        <module>initiator-service</module>
+        <module>investor-service</module>
+        <module>report-service</module>
+    </modules>
 
-	<!-- Modules -->
-	<modules>
-		<module>common-service</module>
-		<module>discovery-server</module>
-		<module>api-gateway</module>
-		<module>auth-service</module>
-		<module>entity-service</module>
-		<module>compliance-service</module>
-		<module>archive-service</module>
-		<module>audit-service</module>
-		<module>initiator-service</module>
-		<module>investor-service</module>
-		<module>notification-service</module>
-		<module>report-service</module>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/>
+    </parent>
 
-	</modules>
+    <properties>
+        <java.version>21</java.version>
+        <spring-cloud.version>2023.0.1</spring-cloud.version>
 
-	<!-- Dependency Management -->
-	<dependencyManagement>
-		<dependencies>
+        <!-- JJWT — single version for api + impl + jackson -->
+        <jjwt.version>0.12.6</jjwt.version>
 
-			<!-- Spring Cloud BOM -->
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-dependencies</artifactId>
-				<version>${spring-cloud.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
+        <!-- MapStruct + Lombok -->
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <lombok.version>1.18.32</lombok.version>
 
-			<!-- Common Library -->
-			<dependency>
-				<groupId>com.compliance</groupId>
-				<artifactId>common-service</artifactId>
-				<version>0.0.1-SNAPSHOT</version>
-			</dependency>
+        <!-- Commons Codec (SHA-256 for refresh token hashing) -->
+        <commons-codec.version>1.17.0</commons-codec.version>
 
-		</dependencies>
-	</dependencyManagement>
+        <!--
+        ══════════════════════════════════════════════════════════════════
+        micrometer.version INTENTIONALLY NOT DECLARED HERE
+        ══════════════════════════════════════════════════════════════════
+        The original pom had:
+            <micrometer.version>1.12.5</micrometer.version>
+        ...and used it for micrometer-tracing-bridge-brave.
 
-	<!-- Build Plugins -->
-	<build>
-		<pluginManagement>
-			<plugins>
+        THIS IS WRONG. There are two separate Micrometer version streams:
 
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.11.0</version>
-					<configuration>
-						<source>${java.version}</source>
-						<target>${java.version}</target>
-						<annotationProcessorPaths>
-							<path>
-								<groupId>org.projectlombok</groupId>
-								<artifactId>lombok</artifactId>
-								<version>${lombok.version}</version>
-							</path>
-						</annotationProcessorPaths>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-	</build>
+          1. micrometer-core / micrometer-registry-* (metrics)
+             Spring Boot 3.2.5 manages → 1.12.5
+             These DO NOT need explicit version declarations.
+
+          2. micrometer-tracing-bridge-brave (distributed tracing)
+             Spring Boot 3.2.5 manages → 1.2.5
+             Artifact micrometer-tracing-bridge-brave:1.12.5 does NOT EXIST.
+             Declaring it explicitly caused:
+               "Missing artifact io.micrometer:micrometer-tracing-bridge-brave:jar:1.12.5"
+
+        FIX: Remove the explicit micrometer-tracing dependency from
+        <dependencyManagement>. Spring Boot's BOM (via spring-boot-starter-parent)
+        already manages both at the correct compatible versions.
+        Child poms that need tracing simply declare the artifact with NO version.
+        ══════════════════════════════════════════════════════════════════
+        -->
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- Spring Cloud BOM — manages Eureka, Gateway, Resilience4j -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- JJWT — all three artifacts pinned to the same version -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- MapStruct -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <!-- Commons Codec (SHA-256 for refresh token hashing) -->
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>${commons-codec.version}</version>
+            </dependency>
+
+            <!-- Internal shared library — version must match this pom's version -->
+            <dependency>
+                <groupId>com.compliance</groupId>
+                <artifactId>common-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!--
+            micrometer-tracing-bridge-brave and zipkin-reporter-brave are
+            intentionally NOT declared here. Spring Boot 3.2.5's BOM manages:
+              micrometer-tracing-bridge-brave → 1.2.5
+              zipkin-reporter-brave           → 3.3.0
+            Declaring them here would override those managed versions.
+            Child poms that need tracing declare them WITHOUT a <version> tag.
+            -->
+
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                        <!-- Reproducible builds -->
+                        <outputTimestamp>2024-01-01T00:00:00Z</outputTimestamp>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <source>21</source>
+                        <target>21</target>
+                        <!--
+                        Annotation processor order matters:
+                        Lombok must process BEFORE MapStruct so that MapStruct
+                        can see the Lombok-generated getters/setters/builders.
+                        lombok-mapstruct-binding enforces this ordering.
+                        -->
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok-mapstruct-binding</artifactId>
+                                <version>0.2.0</version>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+
+                <!-- Enforce dependency convergence and Java version -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>enforce</id>
+                            <goals><goal>enforce</goal></goals>
+                            <configuration>
+                                <rules>
+                                    <dependencyConvergence/>
+                                    <requireJavaVersion>
+                                        <version>[21,)</version>
+                                    </requireJavaVersion>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Flyway -->
+                <plugin>
+                    <groupId>org.flywaydb</groupId>
+                    <artifactId>flyway-maven-plugin</artifactId>
+                    <version>10.12.0</version>
+                </plugin>
+
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>dev</id>
+            <activation><activeByDefault>true</activeByDefault></activation>
+            <properties><spring.profiles.active>dev</spring.profiles.active></properties>
+        </profile>
+        <profile>
+            <id>docker</id>
+            <properties><spring.profiles.active>docker</spring.profiles.active></properties>
+        </profile>
+        <profile>
+            <id>prod</id>
+            <properties><spring.profiles.active>prod</spring.profiles.active></properties>
+        </profile>
+    </profiles>
 
 </project>

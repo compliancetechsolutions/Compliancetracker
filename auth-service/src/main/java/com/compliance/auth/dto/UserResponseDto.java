@@ -7,10 +7,12 @@ import com.compliance.common.dto.BaseDto;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
 @Data
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false) // 🔥 FIX
 public class UserResponseDto extends BaseDto {
-	private UUID userId;
+
+    private UUID userId;
     private String username;
     private String email;
     private String status;

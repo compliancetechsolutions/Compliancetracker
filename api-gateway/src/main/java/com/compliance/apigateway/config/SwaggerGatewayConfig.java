@@ -1,32 +1,63 @@
 package com.compliance.apigateway.config;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 
+@Configuration
 public class SwaggerGatewayConfig {
 
-	@Bean
-	public List<GroupedOpenApi> apis() {
+    private static final String SECURITY_SCHEME_NAME = "bearerAuth";
 
-		List<GroupedOpenApi> groups = new ArrayList<>();
+    @Bean
+    public OpenAPI gatewayOpenAPI() {
 
-		groups.add(GroupedOpenApi.builder().group("auth-service").pathsToMatch("/auth/**").build());
-		groups.add(GroupedOpenApi.builder().group("entity-service").pathsToMatch("/entity/**").build());
-		groups.add(GroupedOpenApi.builder().group("compliance-service").pathsToMatch("/compliance/**").build());
-		groups.add(GroupedOpenApi.builder().group("notification-service").pathsToMatch("/notification/**").build());
-		groups.add(GroupedOpenApi.builder().group("audit-service").pathsToMatch("/audit/**").build());
-		groups.add(GroupedOpenApi.builder().group("archive-service").pathsToMatch("/archive/**").build());
-		groups.add(GroupedOpenApi.builder().group("initiator-service").pathsToMatch("/initiator/**").build());
-		groups.add(GroupedOpenApi.builder().group("investor-service").pathsToMatch("/investor/**").build());
-		groups.add(GroupedOpenApi.builder().group("report-service").pathsToMatch("/report/**").build());
+        return new OpenAPI()
+                .info(
+                        new Info()
+                                .title("Compliance Platform API Gateway")
+                                .description(
+                                        "Aggregated Swagger/OpenAPI documentation for all services.\n\n" +
+                                        "Use the top-right dropdown in Swagger UI to switch between:\n" +
+                                        "- AUTH SERVICE\n" +
+                                        "- ENTITY SERVICE\n\n" +
+                                        "JWT Bearer Authentication enabled."
+                                )
+                                .version("1.0.0")
+                                .contact(
+                                        new Contact()
+                                                .name("Compliance Engineering Team")
+                                                .email("support@compliance.com")
+                                )
+                                .license(
+                                        new License()
+                                                .name("Internal Enterprise License")
+                                )
+                )
 
-		return groups;
-	}
+                .addSecurityItem(
+                        new SecurityRequirement()
+                                .addList(SECURITY_SCHEME_NAME)
+                )
 
+                .components(
+                        new Components()
+                                .addSecuritySchemes(
+                                        SECURITY_SCHEME_NAME,
+                                        new SecurityScheme()
+                                                .name("Authorization")
+                                                .type(SecurityScheme.Type.HTTP)
+                                                .scheme("bearer")
+                                                .bearerFormat("JWT")
+                                                .in(SecurityScheme.In.HEADER)
+                                )
+                );
+    }
 }

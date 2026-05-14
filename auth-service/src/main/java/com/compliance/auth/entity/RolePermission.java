@@ -2,39 +2,38 @@ package com.compliance.auth.entity;
 
 import java.util.UUID;
 
-import com.compliance.entity.BaseEntity;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
 @Table(name = "role_permissions", schema = "auth_schema")
 @Getter
 @Setter
-@Data
-@EqualsAndHashCode(callSuper = true)
-public class RolePermission extends BaseEntity {
+@NoArgsConstructor
+public class RolePermission {
 
-	@Id
-	@GeneratedValue
-	@Column(name = "role_permission_id")
-	private UUID rolePermissionId;
+    @Id
+    @GeneratedValue
+    private UUID rolePermissionId;
 
-	@ManyToOne
-	@JoinColumn(name = "role_id")
-	private Role role;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
+    private Role role;
 
-	@ManyToOne
-	@JoinColumn(name = "permission_id")
-	private Permission permission;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "permission_id")
+    private Permission permission;
 
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
 }
