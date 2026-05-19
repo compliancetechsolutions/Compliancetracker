@@ -1,12 +1,27 @@
 package com.compliance.entity.entity;
 
-import com.compliance.entity.BaseEntity;
-import com.compliance.enums.EntityStatus;
-import jakarta.persistence.*;
-import lombok.*;
+import java.time.LocalDate;
+import java.util.UUID;
+
 import org.hibernate.annotations.SQLRestriction;
 
-import java.util.UUID;
+import com.compliance.entity.BaseEntity;
+import com.compliance.enums.EntityStatus;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 /**
  * Core entity record — companies, funds, or individuals subject to compliance.
@@ -71,4 +86,14 @@ public class EntityMaster extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
     private EntityStatus status = EntityStatus.ACTIVE;
+    
+    @Column(name = "company_start_date")
+    private LocalDate companyStartDate;
+
+    /**
+     * Total number of employees in the organization.
+     */
+    @Column(name = "no_of_employees")
+    private Integer noOfEmployees;
 }
+

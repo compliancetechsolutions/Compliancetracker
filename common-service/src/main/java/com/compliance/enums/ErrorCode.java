@@ -36,6 +36,8 @@ public enum ErrorCode {
     ENTITY_ALREADY_EXISTS("ENTITY_409", "Entity already exists", HttpStatus.CONFLICT),
     ENTITY_CONFLICT("ENTITY_409_OPT", "Concurrent modification conflict — retry", HttpStatus.CONFLICT),
     ENTITY_ALREADT_MAPPED("ENTITY_410_OPT", "Concurrent modification conflict — retry", HttpStatus.CONFLICT),
+    USER_ALREADY_INVESTED("ENTITY_411_OPT", "User Has already Invested in this entity — retry", HttpStatus.CONFLICT),
+    ENTITY_RELATIONSHIP_TYPE("ENTITY_412_OPT", "Admin Relationship Typr not allowed to be mapped —retry", HttpStatus.CONFLICT),
 
     // ── Compliance ─────────────────────────────────────────────────────────
     COMPLIANCE_NOT_FOUND("COMP_404", "Compliance record not found", HttpStatus.NOT_FOUND),

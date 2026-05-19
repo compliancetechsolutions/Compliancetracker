@@ -10,14 +10,9 @@ import lombok.Data;
 public class BulkEntityResponse {
 
 	private int totalRequested;
-
 	private int createdCount;
-
 	private int skippedCount;
-
-	private List<String> createdEntities;
-
+	private List<EntityResponse> createdEntities;
 	private List<String> skippedEntities;
-
 	private String message;
 }

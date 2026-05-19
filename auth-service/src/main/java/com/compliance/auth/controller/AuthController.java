@@ -1,17 +1,24 @@
 package com.compliance.auth.controller;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+
 import com.compliance.auth.dto.LoginRequestDto;
 import com.compliance.auth.dto.LoginResponseDto;
 import com.compliance.auth.dto.RefreshRequestDto;
 import com.compliance.auth.service.AuthService;
 import com.compliance.common.controller.BaseController;
 import com.compliance.common.dto.ApiResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 /**
  * Authentication endpoints.
@@ -70,4 +77,5 @@ public class AuthController extends BaseController {
         authService.logout(request.getRefreshToken());
         return ok("Logged out successfully");
     }
+   
 }

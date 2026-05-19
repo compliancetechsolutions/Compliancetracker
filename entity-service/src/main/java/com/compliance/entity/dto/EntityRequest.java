@@ -1,11 +1,13 @@
 package com.compliance.entity.dto;
 
+import java.time.LocalDate;
 import java.util.UUID;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -34,4 +36,13 @@ public class EntityRequest {
         message = "Registration number may only contain letters, digits, hyphens, and slashes"
     )
     private String registrationNumber;
+    
+    @JsonFormat(
+    	    shape = JsonFormat.Shape.STRING,
+    	    pattern = "yyyy-MM-dd")
+    	private LocalDate companyStartDate;
+
+    	private Integer noOfEmployees;
+    
+    
 }

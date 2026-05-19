@@ -3,6 +3,7 @@ package com.compliance.entity.serviceimpl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -61,23 +62,16 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 	public EntityResponse create(EntityRequest request) {
 
 		requireRole(Role.ADMIN);
-
 		validateNoDuplicateName(request.getEntityName(), null);
-
 		EntityMaster entity = mapper.toEntity(request);
-
 		entity.setEntityId(UUID.randomUUID());
-
+		entity.setCompanyStartDate(request.getCompanyStartDate());
+		entity.setNoOfEmployees(request.getNoOfEmployees());
 		entity.setStatus(EntityStatus.ACTIVE);
-
 		entity.setVersion(0L);
-
 		entity.setIsDeleted(false);
-
 		EntityMaster saved = entityRepo.save(entity);
-
 		log.info("Entity created id={} by admin={}", saved.getEntityId(), UserContext.getUserId());
-
 		return mapper.toResponse(saved);
 	}
 
@@ -87,7 +81,7 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 		requireRole(Role.ADMIN);
 
-		List<String> created = new ArrayList<>();
+		List<EntityResponse> created = new ArrayList<>();
 
 		List<String> skipped = new ArrayList<>();
 
@@ -104,15 +98,11 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 			EntityMaster entity = EntityMaster.builder()
 
-					.entityId(UUID.randomUUID())
-
-					.entityName(entityRequest.getEntityName())
-
+					.entityId(UUID.randomUUID()).entityName(entityRequest.getEntityName())
 					.entityTypeId(entityRequest.getEntityTypeId())
-
 					.registrationNumber(entityRequest.getRegistrationNumber())
-
-					.build();
+					.companyStartDate(entityRequest.getCompanyStartDate())
+					.noOfEmployees(entityRequest.getNoOfEmployees()).build();
 
 			entity.setVersion(0L);
 
@@ -120,23 +110,30 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 			entityRepo.save(entity);
 
-			created.add(entity.getEntityName());
+			created.add(
+
+					EntityResponse.builder()
+
+							.entityId(entity.getEntityId())
+							.entityName(entity.getEntityName())
+							.entityTypeId(entity.getEntityTypeId())
+							.registrationNumber(entity.getRegistrationNumber())
+							.status(entity.getStatus().name())
+							.companyStartDate(entity.getCompanyStartDate())
+							.noOfEmployees(entity.getNoOfEmployees())
+							.createdAt(entity.getCreatedAt())
+							.updatedAt(entity.getUpdatedAt())
+							.createdBy(entity.getCreatedBy())
+							.build());
 		}
 
 		return BulkEntityResponse.builder()
-
 				.totalRequested(request.getEntities().size())
-
 				.createdCount(created.size())
-
 				.skippedCount(skipped.size())
-
 				.createdEntities(created)
-
 				.skippedEntities(skipped)
-
 				.message("Bulk entity creation completed successfully")
-
 				.build();
 	}
 
@@ -151,11 +148,16 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 		updateNameIfNeeded(entity, request);
 		updateIfPresent(request.getRegistrationNumber(), entity::setRegistrationNumber);
 
+		updateIfPresent(request.getNoOfEmployees(), entity::setNoOfEmployees);
+
+		updateIfPresent(request.getCompanyStartDate(), entity::setCompanyStartDate);
+
 		EntityMaster updated = entityRepo.save(entity);
 
 		log.info("Entity updated id={} by user={}", entityId, UserContext.getUserId());
 
 		return mapper.toResponse(updated);
+
 	}
 
 	// =====================================================
@@ -275,6 +277,20 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 		}
 	}
 
+	private void updateIfPresent(Integer value, java.util.function.Consumer<Integer> setter) {
+
+		if (value != null) {
+			setter.accept(value);
+		}
+	}
+
+	private void updateIfPresent(java.time.LocalDate value, java.util.function.Consumer<java.time.LocalDate> setter) {
+
+		if (value != null) {
+			setter.accept(value);
+		}
+	}
+
 	private void updateIfPresent(String value, java.util.function.Consumer<String> setter) {
 
 		if (value != null && !value.isBlank()) {
@@ -352,10 +368,22 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 		for (EntityUserMappingRequest userRequest : request.getUsers()) {
 
-			boolean alreadyMapped = mapperRepo.existsByEntityIdAndUserIdAndRoleIdAndIsDeletedFalse(entityId,
-					userRequest.getUserId(), userRequest.getRoleId());
-			if (alreadyMapped) {
+			boolean alreadyInvested = mapperRepo.existsByEntityIdAndUserIdAndIsDeletedFalse(entityId,
+					userRequest.getUserId());
+
+			if (alreadyInvested) {
+
+				throw new BaseException(ErrorCode.USER_ALREADY_INVESTED, "User already invested in this entity");
+			}
+
+			Set<String> allowedRelationships = Set.of("PRIMARY_INVESTOR", "REPRESENTATIVE");
+
+			if (!allowedRelationships.contains(userRequest.getRelationshipType())) {
+
+				log.warn("Skipping invalid relationship type for userId={}", userRequest.getUserId());
+
 				continue;
+
 			}
 
 			EntityUserMapper mapperEntity = EntityUserMapper.builder()
@@ -370,6 +398,8 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 					.ownershipPercentage(userRequest.getOwnershipPercentage())
 
+					.investmentAmount(userRequest.getInvestmentAmount())
+
 					.relationshipType(userRequest.getRelationshipType())
 
 					.build();
@@ -381,5 +411,4 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 			mapperRepo.save(mapperEntity);
 		}
 	}
-
 }

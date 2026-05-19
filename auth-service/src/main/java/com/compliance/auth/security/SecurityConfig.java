@@ -85,20 +85,23 @@ public class SecurityConfig {
             )
 
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(
-                            "/auth/login",
-                            "/auth/refresh",
-                            "/encode",
-                            "/swagger-ui/**",
-                            "/swagger-ui.html",
-                            "/v3/api-docs/**",
-                            "/actuator/health",
-                            "/actuator/info"
-                    ).permitAll()
+            	    .requestMatchers(
+            	            "/auth/login",
+            	            "/auth/refresh",
+            	            "/encode",
+            	            "/internal/**",
+            	            "/swagger-ui/**",
+            	            "/swagger-ui.html",
+            	            "/v3/api-docs/**",
+            	            "/actuator/health",
+            	            "/actuator/info"
+            	    ).permitAll()
 
+            	    .anyRequest().authenticated()
+            	
                     // All other requests must be authenticated.
                     // Role checks are handled by @PreAuthorize on each method.
-                    .anyRequest().authenticated()
+                    
             )
 
             // UserContextFilter MUST run before UsernamePasswordAuthenticationFilter

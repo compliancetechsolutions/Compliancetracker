@@ -148,6 +148,8 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<String> getUserRoles(UUID userId) {
+		 userRepo.findById(userId).orElseThrow(
+				() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, "User ID not found: " + userId));
 
 		return userRoleRepo.findByUser_UserId(userId).stream().map(ur -> ur.getRole().getRoleName()).toList();
 	}
@@ -236,17 +238,11 @@ public class UserServiceImpl implements UserService {
 	private UserResponseDto updateUserFields(User user, UpdateUserRequestDto request) {
 
 		updateIfPresent(request.getFirstName(), user::setFirstName);
-
 		updateIfPresent(request.getLastName(), user::setLastName);
-
 		updateEmailIfNeeded(user, request);
-
 		updateIfPresent(request.getStatus(), user::setStatus);
-
 		updatePasswordIfPresent(user, request.getPassword());
-
 		userRepo.save(user);
-
 		return userMapper.toDto(user);
 	}
 
@@ -255,7 +251,6 @@ public class UserServiceImpl implements UserService {
 		if (password != null && !password.isBlank()) {
 			user.setPasswordHash(passwordEncoder.encode(password));
 		}
-
 	}
 
 	private void updateIfPresent(String value, Consumer<String> setter) {
@@ -267,98 +262,51 @@ public class UserServiceImpl implements UserService {
 
 	@Override
 	@Transactional
-	public BulkUserCreateResponseDto createBulkUsers(
-	        BulkCreateUserRequestDto request) {
+	public BulkUserCreateResponseDto createBulkUsers(BulkCreateUserRequestDto request) {
 
-	    List<UserResponseDto> createdUsers =
-	            new ArrayList<>();
+		List<UserResponseDto> createdUsers = new ArrayList<>();
 
-	    List<String> skippedUsers =
-	            new ArrayList<>();
+		List<String> skippedUsers = new ArrayList<>();
 
-	    for (CreateUserRequestDto dto
-	            : request.getUsers()) {
+		for (CreateUserRequestDto dto : request.getUsers()) {
 
-	        try {
+			try {
 
-	            boolean usernameExists =
-	                    userRepo.existsByUsernameIgnoreCase(
-	                            dto.getUsername());
+				boolean usernameExists = userRepo.existsByUsernameIgnoreCase(dto.getUsername());
+				boolean emailExists = userRepo.existsByEmailIgnoreCase(dto.getEmail());
+				if (usernameExists || emailExists) {
+					skippedUsers.add(dto.getUsername());
+					continue;
+				}
 
-	            boolean emailExists =
-	                    userRepo.existsByEmailIgnoreCase(
-	                            dto.getEmail());
+				User user = new User();
+				user.setUsername(dto.getUsername());
+				user.setEmail(dto.getEmail());
+				user.setFirstName(dto.getFirstName());
+				user.setLastName(dto.getLastName());
+				user.setStatus("ACTIVE");
+				user.setIsDeleted(false);
+				user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+				User savedUser = userRepo.save(user);
+				// ROLE ASSIGNMENT
+				if (dto.getRoles() != null) {
+					assignRolesToUser(savedUser.getUserId(), new ArrayList<>(dto.getRoles()));
+				}
+				createdUsers.add(userMapper.toDto(savedUser));
+			} catch (Exception ex) {
 
-	            if (usernameExists || emailExists) {
+				ex.printStackTrace();
+				skippedUsers.add(dto.getUsername());
+			}
+		}
 
-	                skippedUsers.add(
-	                        dto.getUsername());
-
-	                continue;
-	            }
-
-	            User user = new User();
-
-	            user.setUsername(dto.getUsername());
-
-	            user.setEmail(dto.getEmail());
-
-	            user.setFirstName(dto.getFirstName());
-
-	            user.setLastName(dto.getLastName());
-
-	            user.setStatus("ACTIVE");
-
-	            user.setIsDeleted(false);
-
-	            user.setPasswordHash(
-	                    passwordEncoder.encode(
-	                            dto.getPassword()));
-
-	            User savedUser =
-	                    userRepo.save(user);
-
-	            // ROLE ASSIGNMENT
-
-	            if (dto.getRoles() != null) {
-
-	            	assignRolesToUser(
-	            	        savedUser.getUserId(),
-	            	        new ArrayList<>(dto.getRoles()));
-	            }
-
-	            createdUsers.add(
-	                    userMapper.toDto(savedUser));
-
-	        } catch (Exception ex) {
-
-	            ex.printStackTrace();
-
-	            skippedUsers.add(
-	                    dto.getUsername());
-	        }
-	    }
-
-	    return BulkUserCreateResponseDto
-	            .builder()
-
-	            .message(
-	                    createdUsers.size()
-	                    + " users created successfully")
-
-	            .totalRequested(
-	                    request.getUsers().size())
-
-	            .createdCount(
-	                    createdUsers.size())
-
-	            .skippedCount(
-	                    skippedUsers.size())
-
-	            .createdUsers(createdUsers)
-
-	            .skippedUsers(skippedUsers)
-
-	            .build();
+		return BulkUserCreateResponseDto.builder()
+				.message(createdUsers.size() + " users created successfully")
+				.totalRequested(request.getUsers().size())
+				.createdCount(createdUsers.size())
+				.skippedCount(skippedUsers.size())
+				.createdUsers(createdUsers)
+				.skippedUsers(skippedUsers)
+				.build();
 	}
-	}
+}
