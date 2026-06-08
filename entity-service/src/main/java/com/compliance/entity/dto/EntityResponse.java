@@ -11,17 +11,61 @@ import lombok.Getter;
 
 @Getter
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(
+    JsonInclude.Include.NON_NULL
+)
 public class EntityResponse {
 
-	private UUID entityId;
-	private String entityName;
-	private UUID entityTypeId;
-	private String registrationNumber;
-	private String status;
-	private LocalDateTime createdAt;
-	private LocalDateTime updatedAt;
-	private String createdBy;
-	private LocalDate companyStartDate;
-	private Integer noOfEmployees;
+    private UUID entityId;
+
+    private String entityName;
+
+    private UUID entityTypeId;
+
+    private String registrationNumber;
+
+    private String status;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    private String createdBy;
+
+    private LocalDate companyStartDate;
+
+    private Integer noOfEmployees;
+
+    /*
+     * GLOBAL
+     * APAC
+     * EMEA
+     * AMERICAS
+     */
+    private String region;
+
+    /*
+     * IN
+     * US
+     * GB
+     */
+    private String countryCode;
+
+    /*
+     * TN
+     * CA
+     */
+    private String stateCode;
+
+    /*
+     * PRIVATE_LIMITED
+     * LLC
+     */
+    private String legalStructure;
+
+    /*
+     * true = receives global compliance
+     */
+    private Boolean globalEntity;
+
 }

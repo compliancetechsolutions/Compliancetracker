@@ -6,7 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
+
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -61,7 +62,7 @@ public class FallbackController {
                 "status",    503,
                 "errorCode", "SVC_UNAVAILABLE",
                 "message",   service + " is temporarily unavailable. Please retry shortly.",
-                "timestamp", Instant.now().toString()
+                "timestamp", LocalDateTime.now().toString()
         );
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
     }

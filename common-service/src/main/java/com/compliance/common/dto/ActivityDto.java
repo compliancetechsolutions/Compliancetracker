@@ -2,7 +2,7 @@ package com.compliance.common.dto;
 
 import java.time.LocalDate;
 
-import com.compliance.enums.ComplianceStatus;
+import com.compliance.common.enums.ComplianceStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.Getter;
@@ -43,7 +43,7 @@ import lombok.Setter;
  * <p><b>Correct approach:</b>
  * <ol>
  *   <li>Status is computed in the service layer using
- *       {@link com.compliance.enums.ComplianceStatus}.</li>
+ *       {@link com.compliance.common.enums.ComplianceStatus}.</li>
  *   <li>The computed status is set on this DTO by the service before returning
  *       to the controller.</li>
  *   <li>The DTO carries it as a plain field — no computation here.</li>

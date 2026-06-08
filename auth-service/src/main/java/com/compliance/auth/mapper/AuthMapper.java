@@ -1,4 +1,4 @@
-package com.compliance.auth.mapper;
+ package com.compliance.auth.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.hibernate.annotations.SQLRestriction;
 
 import com.compliance.entity.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -18,11 +19,11 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.experimental.SuperBuilder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 @Entity
 @Table(name = "users", schema = "auth_schema", indexes = {
         @Index(name = "idx_users_username", columnList = "username"),
@@ -64,6 +65,7 @@ public class User extends BaseEntity {
     private String status = "ACTIVE";
 
     // ✅ FIXED RELATIONSHIP
+    @JsonIgnore
     @OneToMany(
             mappedBy = "user",
             fetch = FetchType.LAZY,

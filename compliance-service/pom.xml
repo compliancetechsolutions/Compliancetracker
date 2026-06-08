@@ -1,56 +1,245 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
- https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+    http://maven.apache.org/POM/4.0.0
+    https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
+    <modelVersion>4.0.0</modelVersion>
 
-<modelVersion>4.0.0</modelVersion>
+    <!-- PARENT -->
 
-<parent>
-    <groupId>com.compliance</groupId>
-    <artifactId>compliance-platform</artifactId>
-    <version>1.0.0</version>   <!-- MUST MATCH ROOT -->
-    <relativePath>../pom.xml</relativePath>
-</parent>
+    <parent>
 
-<artifactId>compliance-service</artifactId>
+        <groupId>com.compliance</groupId>
 
-<dependencies>
+        <artifactId>compliance-platform</artifactId>
 
-<dependency>
-<groupId>org.springframework.boot</groupId>
-<artifactId>spring-boot-starter-web</artifactId>
-</dependency>
+        <version>1.0.0</version>
 
-<dependency>
-<groupId>org.springframework.boot</groupId>
-<artifactId>spring-boot-starter-data-jpa</artifactId>
-</dependency>
+        <relativePath>../pom.xml</relativePath>
 
-<dependency>
-<groupId>com.compliance</groupId>
-<artifactId>common-service</artifactId>
-</dependency>
+    </parent>
 
-</dependencies>
+    <!-- MODULE -->
 
-<build>
-    <plugins>
+    <artifactId>compliance-service</artifactId>
 
-        <!-- 🔥 THIS IS THE FIX -->
-        <plugin>
+    <packaging>jar</packaging>
+
+    <name>compliance-service</name>
+
+    <!-- PROPERTIES -->
+
+    <properties>
+
+        <java.version>21</java.version>
+
+        <drools.version>10.1.0</drools.version>
+
+        <springdoc.version>2.8.9</springdoc.version>
+
+    </properties>
+
+    <!-- DEPENDENCIES -->
+
+    <dependencies>
+
+        <!-- INTERNAL -->
+
+        <dependency>
+            <groupId>com.compliance</groupId>
+            <artifactId>common-service</artifactId>
+        </dependency>
+
+        <!-- SPRING -->
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
-            <executions>
-                <execution>
-                    <goals>
-                        <goal>repackage</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
 
-    </plugins>
-</build>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- MAPSTRUCT (ONLY API) -->
+
+        <dependency>
+
+            <groupId>org.mapstruct</groupId>
+
+            <artifactId>mapstruct</artifactId>
+
+        </dependency>
+
+        <!-- KAFKA -->
+
+        <dependency>
+
+            <groupId>org.springframework.kafka</groupId>
+
+            <artifactId>spring-kafka</artifactId>
+
+        </dependency>
+
+        <!-- DATABASE -->
+
+        <dependency>
+
+            <groupId>org.postgresql</groupId>
+
+            <artifactId>postgresql</artifactId>
+
+            <scope>runtime</scope>
+
+        </dependency>
+
+        <!-- FLYWAY -->
+
+        <dependency>
+
+            <groupId>org.flywaydb</groupId>
+
+            <artifactId>flyway-core</artifactId>
+
+        </dependency>
+
+        <!-- DROOLS -->
+
+        <dependency>
+
+            <groupId>org.drools</groupId>
+
+            <artifactId>drools-core</artifactId>
+
+            <version>${drools.version}</version>
+
+        </dependency>
+
+        <dependency>
+
+            <groupId>org.drools</groupId>
+
+            <artifactId>drools-engine</artifactId>
+
+            <version>${drools.version}</version>
+
+        </dependency>
+
+        <dependency>
+
+            <groupId>org.kie</groupId>
+
+            <artifactId>kie-api</artifactId>
+
+            <version>${drools.version}</version>
+
+        </dependency>
+
+        <dependency>
+
+            <groupId>org.drools</groupId>
+
+            <artifactId>drools-xml-support</artifactId>
+
+            <version>${drools.version}</version>
+
+        </dependency>
+
+        <!-- OPENAPI -->
+
+        <dependency>
+
+            <groupId>org.springdoc</groupId>
+
+            <artifactId>
+                springdoc-openapi-starter-webmvc-ui
+            </artifactId>
+
+            <version>${springdoc.version}</version>
+
+        </dependency>
+
+        <!-- LOMBOK -->
+
+        <dependency>
+
+            <groupId>org.projectlombok</groupId>
+
+            <artifactId>lombok</artifactId>
+
+            <optional>true</optional>
+
+        </dependency>
+
+        <!-- TEST -->
+
+        <dependency>
+
+            <groupId>org.springframework.boot</groupId>
+
+            <artifactId>
+                spring-boot-starter-test
+            </artifactId>
+
+            <scope>test</scope>
+
+        </dependency>
+
+        <dependency>
+
+            <groupId>org.testcontainers</groupId>
+
+            <artifactId>postgresql</artifactId>
+
+            <scope>test</scope>
+
+        </dependency>
+
+    </dependencies>
+
+    <!-- BUILD -->
+
+    <build>
+
+        <plugins>
+
+            <plugin>
+
+                <groupId>
+                    org.springframework.boot
+                </groupId>
+
+                <artifactId>
+                    spring-boot-maven-plugin
+                </artifactId>
+
+            </plugin>
+
+        </plugins>
+
+    </build>
 
 </project>

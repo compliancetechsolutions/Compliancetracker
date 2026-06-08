@@ -3,9 +3,8 @@ package com.compliance.auth.controller;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
+
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +16,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.compliance.auth.dto.BulkCreateUserRequestDto;
 import com.compliance.auth.dto.BulkUserCreateResponseDto;
@@ -27,8 +30,11 @@ import com.compliance.auth.dto.UserResponseDto;
 import com.compliance.auth.service.UserService;
 import com.compliance.common.controller.BaseController;
 import com.compliance.common.dto.ApiResponse;
+import com.compliance.common.dto.PaginationRequestDto;
+import com.compliance.common.enums.UserErrorCode;
 import com.compliance.common.exception.ResourceNotFoundException;
-import com.compliance.enums.ErrorCode;
+
+
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -72,13 +78,37 @@ public class UserController extends BaseController {
 	// =====================================================
 
 	@Operation(summary = "List all users (paginated)", description = "Admin only")
-	@GetMapping
+	//@GetMapping
+	@PostMapping("/users/search")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<ApiResponse<Page<UserResponseDto>>> getAllUsers(
 
-			@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+			@RequestBody PaginationRequestDto request) {
+		
+		
+		 Sort sort = Sort.unsorted();
 
-		return ok(userService.getAll(pageable));
+		 if (request.getSort() != null &&
+		            !request.getSort().isEmpty()) {
+
+		        String[] parts =
+		                request.getSort().get(0).split(",");
+
+		        sort = Sort.by(
+
+		                Sort.Direction.fromString(parts[1]),
+		                parts[0]
+		        );
+		    }
+
+		    Pageable pageable = PageRequest.of(
+
+		    		request.getPage(),
+		            request.getSize(),
+		            sort
+		    );
+
+		    return ok(userService.getAll(pageable));
 	}
 
 	// =====================================================
@@ -91,7 +121,7 @@ public class UserController extends BaseController {
 	public ResponseEntity<ApiResponse<UserResponseDto>> getUserById(@PathVariable UUID id) {
 
 		UserResponseDto user = userService.getById(id)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, id));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, id));
 
 		return ok(user);
 	}

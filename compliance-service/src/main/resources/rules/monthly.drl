@@ -1,0 +1,44 @@
+package rules
+
+import com.compliance.compliance.domain.RuleFact
+import com.compliance.compliance.domain.RuleResult
+
+global com.compliance.compliance.service.NotificationService notificationService
+
+global RuleResult ruleResult
+
+rule "MONTHLY_COMPLIANCE"
+
+salience 100
+
+when
+
+$f :
+
+RuleFact(
+
+frequency=="MONTHLY",
+
+completedDate!=null
+
+)
+
+then
+
+ruleResult.setPassed(true);
+
+ruleResult.setRuleName(
+"MONTHLY_COMPLIANCE"
+);
+
+ruleResult.setMessage(
+"Monthly compliance completed"
+);
+
+notificationService.send(
+"Monthly compliance completed"
+);
+
+update($f);
+
+end

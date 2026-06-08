@@ -1,0 +1,50 @@
+package rules
+
+import java.time.LocalDate
+
+import com.compliance.compliance.domain.RuleFact
+import com.compliance.compliance.domain.RuleResult
+
+global RuleResult ruleResult
+
+global com.compliance.compliance.service.NotificationService notificationService
+
+rule "OVERDUE"
+
+salience 1000
+
+when
+
+$f :
+
+RuleFact(
+
+completedDate==null,
+
+dueDate.isBefore(
+LocalDate.now()
+)
+
+)
+
+then
+
+$f.setOverdue(true);
+
+ruleResult.setPassed(false);
+
+ruleResult.setRuleName(
+"OVERDUE"
+);
+
+ruleResult.setMessage(
+"Compliance overdue"
+);
+
+notificationService.send(
+"Compliance overdue"
+);
+
+update($f);
+
+end

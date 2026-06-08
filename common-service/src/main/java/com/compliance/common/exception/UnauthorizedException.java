@@ -1,6 +1,7 @@
 package com.compliance.common.exception;
 
-import com.compliance.enums.ErrorCode;
+import com.compliance.common.enums.BaseErrorCode;
+import com.compliance.common.enums.ErrorCode;
 
 /**
  * Thrown when a request lacks valid authentication or the token is
@@ -13,11 +14,11 @@ public class UnauthorizedException extends BaseException {
 	 */
 	private static final long serialVersionUID = 1885329855953712856L;
 
-	public UnauthorizedException(ErrorCode errorCode) {
+	public UnauthorizedException(BaseErrorCode errorCode) {
 		super(errorCode);
 	}
 
-	public UnauthorizedException(ErrorCode errorCode, String detail) {
+	public UnauthorizedException(BaseErrorCode errorCode, String detail) {
 		super(errorCode, detail);
 	}
 }

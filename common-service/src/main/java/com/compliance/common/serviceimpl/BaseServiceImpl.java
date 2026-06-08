@@ -7,12 +7,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
+import com.compliance.common.enums.EntityErrorCode;
 import com.compliance.common.exception.BaseException;
 import com.compliance.common.exception.ResourceNotFoundException;
 import com.compliance.common.repository.BaseRepository;
 import com.compliance.common.service.BaseService;
 import com.compliance.entity.BaseEntity;
-import com.compliance.enums.ErrorCode;
 
 import jakarta.persistence.OptimisticLockException;
 
@@ -69,7 +69,7 @@ implements BaseService<
         ENTITY entity = repository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                ErrorCode.ENTITY_NOT_FOUND,
+                                EntityErrorCode.ENTITY_NOT_FOUND,
                                 id));
 
         try {
@@ -85,7 +85,7 @@ implements BaseService<
                 | OptimisticLockException e) {
 
             throw new BaseException(
-                    ErrorCode.ENTITY_CONFLICT,
+                    EntityErrorCode.ENTITY_CONFLICT,
                     "This record was modified by another request. Please refresh and retry.");
         }
     }

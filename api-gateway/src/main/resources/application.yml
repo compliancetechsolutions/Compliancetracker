@@ -5,186 +5,194 @@ server:
 spring:
   application:
     name: api-gateway
-  
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
   cloud:
     gateway:
+      server:
+        webflux:
 
-      httpclient:
-        protocol: HTTP11
+          httpclient:
+            protocol: HTTP11
 
-      globalcors:
-        corsConfigurations:
-          '[/**]':
-            allowedOriginPatterns:
-              - "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - PATCH
-              - OPTIONS
-            allowedHeaders:
-              - "*"
-            exposedHeaders:
-              - "*"
+          globalcors:
+            corsConfigurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - PATCH
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                exposedHeaders:
+                  - "*"
 
-      routes:
+          routes:
 
-        # ================= AUTH =================
-        - id: auth-service
-          uri: http://auth-service:8081
-          predicates:
-            - Path=/auth/**
+            # ================= AUTH =================
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth/**
 
-        # ================= ENTITY =================
-        - id: entity-service
-          uri: http://entity-service:8082
-          predicates:
-            - Path=/api/v1/entities/**
-          
-        # ================= OTHER SERVICES =================
-        - id: compliance-service
-          uri: http://compliance-service:8083
-          predicates:
-            - Path=/compliance/**
-          filters:
-            - StripPrefix=1
+            # ================= ENTITY =================
+            - id: entity-service
+              uri: lb://entity-service
+              predicates:
+                - Path=/api/v1/entities/**
 
-        - id: initiator-service
-          uri: http://initiator-service:8084
-          predicates:
-            - Path=/initiator/**
-          filters:
-            - StripPrefix=1
+            # ================= OTHER SERVICES =================
+            - id: compliance-service
+              uri: lb://compliance-service
+              predicates:
+                - Path=/compliance/**
+              filters:
+                - StripPrefix=1
 
-        - id: investor-service
-          uri: http://investor-service:8085
-          predicates:
-            - Path=/investor/**
-          filters:
-            - StripPrefix=1
+            - id: initiator-service
+              uri: lb://initiator-service
+              predicates:
+                - Path=/initiator/**
+              filters:
+                - StripPrefix=1
 
-        - id: notification-service
-          uri: http://notification-service:8086
-          predicates:
-            - Path=/notification/**
-          filters:
-            - StripPrefix=1
+            - id: investor-service
+              uri: lb://investor-service
+              predicates:
+                - Path=/investor/**
+              filters:
+                - StripPrefix=1
 
-        - id: report-service
-          uri: http://report-service:8087
-          predicates:
-            - Path=/report/**
-          filters:
-            - StripPrefix=1
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=/notification/**
+              filters:
+                - StripPrefix=1
 
-        - id: audit-service
-          uri: http://audit-service:8088
-          predicates:
-            - Path=/audit/**
-          filters:
-            - StripPrefix=1
+            - id: report-service
+              uri: lb://report-service
+              predicates:
+                - Path=/report/**
+              filters:
+                - StripPrefix=1
 
-        - id: archive-service
-          uri: http://archive-service:8089
-          predicates:
-            - Path=/archive/**
-          filters:
-            - StripPrefix=1
+            - id: audit-service
+              uri: lb://audit-service
+              predicates:
+                - Path=/audit/**
+              filters:
+                - StripPrefix=1
 
-        # ================= SWAGGER UI =================
-        - id: swagger-ui-html
-          uri: http://auth-service:8081
-          predicates:
-            - Path=/swagger-ui.html
+            - id: archive-service
+              uri: lb://archive-service
+              predicates:
+                - Path=/archive/**
+              filters:
+                - StripPrefix=1
 
-        - id: swagger-ui-assets
-          uri: http://auth-service:8081
-          predicates:
-            - Path=/swagger-ui/**
+            # ================= SWAGGER UI =================
+            - id: swagger-ui-html
+              uri: lb://auth-service
+              predicates:
+                - Path=/swagger-ui.html
 
-        - id: swagger-webjars
-          uri: http://auth-service:8081
-          predicates:
-            - Path=/webjars/**
+            - id: swagger-ui-assets
+              uri: lb://auth-service
+              predicates:
+                - Path=/swagger-ui/**
 
-        - id: swagger-config
-          uri: http://auth-service:8081
-          predicates:
-            - Path=/v3/api-docs/swagger-config
+            - id: swagger-webjars
+              uri: lb://auth-service
+              predicates:
+                - Path=/webjars/**
 
-        # ================= OPENAPI DOCS =================
+            - id: swagger-config
+              uri: lb://auth-service
+              predicates:
+                - Path=/v3/api-docs/swagger-config
 
-        - id: auth-docs
-          uri: http://auth-service:8081
-          predicates:
-            - Path=/v3/api-docs/auth/**
-          filters:
-            - RewritePath=/v3/api-docs/auth(?<segment>/?.*), /v3/api-docs${segment}
+            # ================= OPENAPI DOCS =================
+            - id: auth-docs
+              uri: lb://auth-service
+              predicates:
+                - Path=/v3/api-docs/auth,/v3/api-docs/auth/**
+              filters:
+                - RewritePath=/v3/api-docs/auth(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: entity-docs
-          uri: http://entity-service:8082
-          predicates:
-            - Path=/v3/api-docs/entity/**
-          filters:
-            - RewritePath=/v3/api-docs/entity(?<segment>/?.*), /v3/api-docs${segment}
+            - id: entity-docs
+              uri: lb://entity-service
+              predicates:
+                - Path=/v3/api-docs/entity,/v3/api-docs/entity/**
+              filters:
+                - RewritePath=/v3/api-docs/entity(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: compliance-docs
-          uri: http://compliance-service:8083
-          predicates:
-            - Path=/v3/api-docs/compliance/**
-          filters:
-            - RewritePath=/v3/api-docs/compliance(?<segment>/?.*), /v3/api-docs${segment}
+            - id: compliance-docs
+              uri: lb://compliance-service
+              predicates:
+                - Path=/v3/api-docs/compliance,/v3/api-docs/compliance/**
+              filters:
+                - RewritePath=/v3/api-docs/compliance(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: initiator-docs
-          uri: http://initiator-service:8084
-          predicates:
-            - Path=/v3/api-docs/initiator/**
-          filters:
-            - RewritePath=/v3/api-docs/initiator(?<segment>/?.*), /v3/api-docs${segment}
+            - id: initiator-docs
+              uri: lb://initiator-service
+              predicates:
+                - Path=/v3/api-docs/initiator,/v3/api-docs/initiator/**
+              filters:
+                - RewritePath=/v3/api-docs/initiator(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: investor-docs
-          uri: http://investor-service:8085
-          predicates:
-            - Path=/v3/api-docs/investor/**
-          filters:
-            - RewritePath=/v3/api-docs/investor(?<segment>/?.*), /v3/api-docs${segment}
+            - id: investor-docs
+              uri: lb://investor-service
+              predicates:
+                - Path=/v3/api-docs/investor,/v3/api-docs/investor/**
+              filters:
+                - RewritePath=/v3/api-docs/investor(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: notification-docs
-          uri: http://notification-service:8086
-          predicates:
-            - Path=/v3/api-docs/notification/**
-          filters:
-            - RewritePath=/v3/api-docs/notification(?<segment>/?.*), /v3/api-docs${segment}
+            - id: notification-docs
+              uri: lb://notification-service
+              predicates:
+                - Path=/v3/api-docs/notification,/v3/api-docs/notification/**
+              filters:
+                - RewritePath=/v3/api-docs/notification(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: report-docs
-          uri: http://report-service:8087
-          predicates:
-            - Path=/v3/api-docs/report/**
-          filters:
-            - RewritePath=/v3/api-docs/report(?<segment>/?.*), /v3/api-docs${segment}
+            - id: report-docs
+              uri: lb://report-service
+              predicates:
+                - Path=/v3/api-docs/report,/v3/api-docs/report/**
+              filters:
+                - RewritePath=/v3/api-docs/report(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: audit-docs
-          uri: http://audit-service:8088
-          predicates:
-            - Path=/v3/api-docs/audit/**
-          filters:
-            - RewritePath=/v3/api-docs/audit(?<segment>/?.*), /v3/api-docs${segment}
+            - id: audit-docs
+              uri: lb://audit-service
+              predicates:
+                - Path=/v3/api-docs/audit,/v3/api-docs/audit/**
+              filters:
+                - RewritePath=/v3/api-docs/audit(?<segment>/?.*), /v3/api-docs${segment}
 
-        - id: archive-docs
-          uri: http://archive-service:8089
-          predicates:
-            - Path=/v3/api-docs/archive/**
-          filters:
-            - RewritePath=/v3/api-docs/archive(?<segment>/?.*), /v3/api-docs${segment}
+            - id: archive-docs
+              uri: lb://archive-service
+              predicates:
+                - Path=/v3/api-docs/archive,/v3/api-docs/archive/**
+              filters:
+                - RewritePath=/v3/api-docs/archive(?<segment>/?.*), /v3/api-docs${segment}
 
 eureka:
   client:
     register-with-eureka: true
     fetch-registry: true
+
     service-url:
-      defaultZone: http://eureka:8761/eureka
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
 
 springdoc:
   api-docs:
@@ -197,8 +205,10 @@ springdoc:
     urls:
       - name: AUTH SERVICE
         url: /v3/api-docs/auth
+
       - name: ENTITY SERVICE
         url: /v3/api-docs/entity
+
       - name: COMPLIANCE SERVICE
         url: /v3/api-docs/compliance
 

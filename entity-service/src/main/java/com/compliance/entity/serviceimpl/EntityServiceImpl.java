@@ -13,6 +13,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.compliance.common.enums.AuthErrorCode;
+import com.compliance.common.enums.EntityErrorCode;
+import com.compliance.common.enums.EntityStatus;
+import com.compliance.common.enums.Role;
 import com.compliance.common.exception.BaseException;
 import com.compliance.common.exception.ResourceNotFoundException;
 import com.compliance.common.security.UserContext;
@@ -29,9 +33,6 @@ import com.compliance.entity.mapper.EntityMapper;
 import com.compliance.entity.repository.EntityRepository;
 import com.compliance.entity.repository.EntityUserMapperRepository;
 import com.compliance.entity.service.EntityService;
-import com.compliance.enums.EntityStatus;
-import com.compliance.enums.ErrorCode;
-import com.compliance.enums.Role;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,7 +45,9 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 	private final EntityRepository entityRepo;
 	private final EntityUserMapperRepository mapperRepo;
 	private final EntityMapper mapper;
+	
 
+	
 	public EntityServiceImpl(EntityRepository entityRepo, EntityUserMapperRepository mapperRepo, EntityMapper mapper) {
 
 		super(entityRepo);
@@ -52,7 +55,7 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 		this.mapperRepo = mapperRepo;
 		this.mapper = mapper;
 	}
-
+		
 	// =====================================================
 	// CREATE (ADMIN ONLY)
 	// =====================================================
@@ -114,27 +117,16 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 					EntityResponse.builder()
 
-							.entityId(entity.getEntityId())
-							.entityName(entity.getEntityName())
-							.entityTypeId(entity.getEntityTypeId())
-							.registrationNumber(entity.getRegistrationNumber())
-							.status(entity.getStatus().name())
-							.companyStartDate(entity.getCompanyStartDate())
-							.noOfEmployees(entity.getNoOfEmployees())
-							.createdAt(entity.getCreatedAt())
-							.updatedAt(entity.getUpdatedAt())
-							.createdBy(entity.getCreatedBy())
-							.build());
+							.entityId(entity.getEntityId()).entityName(entity.getEntityName())
+							.entityTypeId(entity.getEntityTypeId()).registrationNumber(entity.getRegistrationNumber())
+							.status(entity.getStatus().name()).companyStartDate(entity.getCompanyStartDate())
+							.noOfEmployees(entity.getNoOfEmployees()).createdAt(entity.getCreatedAt())
+							.updatedAt(entity.getUpdatedAt()).createdBy(entity.getCreatedBy()).build());
 		}
 
-		return BulkEntityResponse.builder()
-				.totalRequested(request.getEntities().size())
-				.createdCount(created.size())
-				.skippedCount(skipped.size())
-				.createdEntities(created)
-				.skippedEntities(skipped)
-				.message("Bulk entity creation completed successfully")
-				.build();
+		return BulkEntityResponse.builder().totalRequested(request.getEntities().size()).createdCount(created.size())
+				.skippedCount(skipped.size()).createdEntities(created).skippedEntities(skipped)
+				.message("Bulk entity creation completed successfully").build();
 	}
 
 	// UPDATE
@@ -238,7 +230,7 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 	private void requireRole(Role minimumRole) {
 
 		if (!UserContext.hasMinimumRole(minimumRole)) {
-			throw new BaseException(ErrorCode.AUTH_FORBIDDEN, "Access denied");
+			throw new BaseException(AuthErrorCode.AUTH_FORBIDDEN, "Access denied");
 		}
 	}
 
@@ -250,12 +242,12 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 			boolean mapped = mapperRepo.existsByUserIdAndEntityIdAndIsDeletedFalse(UserContext.getUserId(), entityId);
 
 			if (!mapped) {
-				throw new BaseException(ErrorCode.AUTH_FORBIDDEN);
+				throw new BaseException(AuthErrorCode.AUTH_FORBIDDEN);
 			}
 		}
 
 		return entityRepo.findById(entityId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ENTITY_NOT_FOUND, entityId));
+				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
 	}
 
 	// =====================================================
@@ -304,7 +296,7 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 				: entityRepo.existsByEntityNameIgnoreCaseAndEntityIdNotAndIsDeletedFalse(name, excludeId);
 
 		if (exists) {
-			throw new BaseException(ErrorCode.ENTITY_ALREADY_EXISTS);
+			throw new ResourceNotFoundException(EntityErrorCode.ENTITY_ALREADY_EXISTS);
 		}
 	}
 
@@ -329,12 +321,12 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 		EntityMaster entity = entityRepo.findByEntityIdAndIsDeletedFalse(entityId)
 
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ENTITY_NOT_FOUND, entityId));
+				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
 
 		boolean alreadyMapped = mapperRepo.existsByEntityIdAndUserIdAndRoleIdAndIsDeletedFalse(entityId,
 				request.getUserId(), request.getRoleId());
 		if (alreadyMapped) {
-			throw new BaseException(ErrorCode.ENTITY_ALREADT_MAPPED, "User already mapped to entity");
+			throw new BaseException(EntityErrorCode.ENTITY_ALREADT_MAPPED, "User already mapped to entity");
 		}
 
 		EntityUserMapper mapperEntity = EntityUserMapper.builder()
@@ -363,8 +355,13 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 		requireRole(Role.ADMIN);
 
+		if (request == null || request.getUsers() == null || request.getUsers().isEmpty()) {
+
+			throw new BaseException(EntityErrorCode.ENTITY_RELATIONSHIP_TYPE, "Users list cannot be empty");
+		}
+
 		EntityMaster entity = entityRepo.findByEntityIdAndIsDeletedFalse(entityId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ENTITY_NOT_FOUND, entityId));
+				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
 
 		for (EntityUserMappingRequest userRequest : request.getUsers()) {
 
@@ -373,7 +370,7 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 			if (alreadyInvested) {
 
-				throw new BaseException(ErrorCode.USER_ALREADY_INVESTED, "User already invested in this entity");
+				throw new BaseException(EntityErrorCode.USER_ALREADY_INVESTED, "User already invested in this entity");
 			}
 
 			Set<String> allowedRelationships = Set.of("PRIMARY_INVESTOR", "REPRESENTATIVE");
@@ -408,7 +405,16 @@ public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequ
 
 			mapperEntity.setIsDeleted(false);
 
-			mapperRepo.save(mapperEntity);
+			mapperRepo.save(
+			        mapperEntity
+			);
+
+			// =============================================
+			// PRODUCE DOWNSTREAM EVENTS
+			// =============================================
+
+			}
 		}
 	}
-}
+
+	

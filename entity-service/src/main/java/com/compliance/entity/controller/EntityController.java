@@ -25,7 +25,8 @@ import com.compliance.entity.dto.EntityRequest;
 import com.compliance.entity.dto.EntityResponse;
 import com.compliance.entity.dto.EntityUserMappingRequest;
 import com.compliance.entity.service.EntityService;
-import com.compliance.enums.ErrorCode;
+import com.compliance.common.enums.EntityErrorCode;
+
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -76,7 +77,7 @@ public class EntityController extends BaseController {
 
 		EntityResponse response = entityService.getById(id)
 
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ENTITY_NOT_FOUND, id));
+				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, id));
 
 		return ok(response);
 	}
@@ -123,7 +124,7 @@ public class EntityController extends BaseController {
 
 	@PostMapping("/{entityId}/users/bulk")
 	public ResponseEntity<Void> mapUsers(@PathVariable UUID entityId,
-			@RequestBody EntityBulkUserMappingRequest request) {
+			@Valid @RequestBody EntityBulkUserMappingRequest request) {
 
 		entityService.mapUsers(entityId, request);
 

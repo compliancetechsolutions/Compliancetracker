@@ -28,9 +28,6 @@ CREATE TABLE IF NOT EXISTS auth_schema.users (
     CONSTRAINT uq_users_email    UNIQUE (email)
 );
 
-CREATE INDEX idx_users_username ON auth_schema.users (username) WHERE is_deleted = FALSE;
-CREATE INDEX idx_users_email    ON auth_schema.users (email)    WHERE is_deleted = FALSE;
-CREATE INDEX idx_users_status   ON auth_schema.users (status)   WHERE is_deleted = FALSE;
 
 -- ── Roles ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS auth_schema.roles (
@@ -114,8 +111,6 @@ CREATE TABLE IF NOT EXISTS auth_schema.refresh_tokens (
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (token_id)
 );
 
-CREATE INDEX idx_refresh_tokens_user_id ON auth_schema.refresh_tokens (user_id);
-CREATE INDEX idx_refresh_tokens_token   ON auth_schema.refresh_tokens (token)   WHERE revoked = FALSE;
 
 -- ── Login History ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS auth_schema.login_history (
@@ -134,8 +129,6 @@ CREATE TABLE IF NOT EXISTS auth_schema.login_history (
     CONSTRAINT pk_login_history PRIMARY KEY (login_id)
 );
 
-CREATE INDEX idx_login_history_user_id ON auth_schema.login_history (user_id);
-CREATE INDEX idx_login_history_time    ON auth_schema.login_history (login_time DESC);
 
 -- ── User Sessions ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS auth_schema.user_sessions (
@@ -155,7 +148,6 @@ CREATE TABLE IF NOT EXISTS auth_schema.user_sessions (
     CONSTRAINT pk_user_sessions PRIMARY KEY (session_id)
 );
 
-CREATE INDEX idx_user_sessions_user_id ON auth_schema.user_sessions (user_id) WHERE active = TRUE;
 
 -- ── Seed data ─────────────────────────────────────────────
 -- Default roles (bcrypt hashed admin password inserted in V2__seed_data.sql)

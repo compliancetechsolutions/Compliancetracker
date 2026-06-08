@@ -142,7 +142,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
         // SESSION VALIDATION (Reactive)
         return webClient.get()
-                .uri("http://auth-service/internal/session/validate/" + userId)
+                .uri("lb://auth-service/internal/session/validate")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .bodyToMono(Boolean.class)
 

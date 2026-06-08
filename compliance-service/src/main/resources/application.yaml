@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: compliance-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/compliance_db?currentSchema=compliance_schema}
+    username: ${DB_USERNAME:compliance}
+    password: ${DB_PASSWORD:Zaq@12wsx#}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name:                CompliancePool
+      maximum-pool-size:        20
+      minimum-idle:             5
+      connection-timeout:       30000
+      idle-timeout:             600000
+      max-lifetime:             1800000
+      leak-detection-threshold: 60000
+      auto-commit:              false
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect:             org.hibernate.dialect.PostgreSQLDialect
+        jdbc.batch_size:     50
+        order_inserts:       true
+        order_updates:       true
+        generate_statistics: false
+        default_schema:      compliance_schema
+
+  flyway:
+    enabled:             true
+    locations:           classpath:db/migration
+    baseline-on-migrate: true
+    schemas:             compliance_schema
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id:           compliance-group
+      auto-offset-reset:  earliest
+      enable-auto-commit: false
+      max-poll-records:   500
+      fetch-min-size:     1024
+      fetch-max-wait:     500ms
+      properties:
+        session.timeout.ms:    45000
+        heartbeat.interval.ms: 15000
+    listener:
+      ack-mode:    MANUAL
+      concurrency: 10
+
+  data:
+    redis:
+      host:     ${REDIS_HOST:localhost}
+      port:     ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout:  2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle:   10
+          min-idle:   2
+
+# =============================================================
+# APPLICATION - KAFKA TOPICS
+# FIX: These @Value("${app.kafka.topics.*}") properties were
+# referenced by ComplianceEventConsumer and ComplianceEventProducer
+# but were entirely absent from the original application.yaml,
+# causing BeanCreationException on startup.
+# =============================================================
+app:
+  kafka:
+    topics:
+      compliance-created:   compliance.created
+      compliance-completed: compliance.completed
+      notification-events:  compliance.notifications
+      workflow-task:        workflow.task
+
+# =============================================================
+# SCHEDULER
+# =============================================================
+compliance:
+  scheduler:
+    cron: "0 0 1 * * *"   # daily at 01:00 (off-peak)
+
+# =============================================================
+# SERVER
+# =============================================================
+server:
+  port: ${SERVER_PORT:8083}
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+  http2:
+    enabled: true
+
+# =============================================================
+# ACTUATOR / PROMETHEUS
+# =============================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true

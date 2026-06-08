@@ -1,0 +1,38 @@
+package rules
+
+import com.compliance.compliance.domain.RuleFact
+import com.compliance.compliance.domain.RuleResult
+
+global RuleResult ruleResult
+
+rule "YEARLY_COMPLIANCE"
+
+salience 80
+
+when
+
+$f :
+
+RuleFact(
+
+frequency=="YEARLY",
+
+completedDate!=null
+
+)
+
+then
+
+ruleResult.setPassed(true);
+
+ruleResult.setRuleName(
+"YEARLY"
+);
+
+ruleResult.setMessage(
+"Yearly compliance passed"
+);
+
+update($f);
+
+end

@@ -1,36 +1,71 @@
 package com.compliance.common.exception;
 
-import com.compliance.enums.ErrorCode;
+import com.compliance.common.enums.BaseErrorCode;
+
 import lombok.Getter;
 
 /**
  * Base for all domain/business exceptions.
  *
- * <p>The {@link ErrorCode} carries the HTTP status to use — the
- * {@link GlobalExceptionHandler} reads it so each exception maps to the
- * correct status code rather than always returning 400.
+ * The BaseErrorCode carries:
+ * - error code
+ * - message
+ * - HTTP status
  */
 @Getter
 public class BaseException extends RuntimeException {
 
-    /**
-	 * 
-	 */
-	private static final long serialVersionUID = 6517285502347750779L;
-	private final ErrorCode errorCode;
+    private static final long serialVersionUID =
+            6517285502347750779L;
 
-    public BaseException(ErrorCode errorCode) {
+    private final BaseErrorCode errorCode;
+
+    // =========================================
+    // DEFAULT CONSTRUCTOR
+    // =========================================
+
+    public BaseException(
+            BaseErrorCode errorCode
+    ) {
+
         super(errorCode.getMessage());
+
         this.errorCode = errorCode;
     }
 
-    public BaseException(ErrorCode errorCode, String detail) {
-        super(detail != null && !detail.isBlank() ? detail : errorCode.getMessage());
+    // =========================================
+    // DETAIL CONSTRUCTOR
+    // =========================================
+
+    public BaseException(
+            BaseErrorCode errorCode,
+            String detail
+    ) {
+
+        super(
+                detail != null &&
+                !detail.isBlank()
+                        ? detail
+                        : errorCode.getMessage()
+        );
+
         this.errorCode = errorCode;
     }
 
-    public BaseException(ErrorCode errorCode, Throwable cause) {
-        super(errorCode.getMessage(), cause);
+    // =========================================
+    // CAUSE CONSTRUCTOR
+    // =========================================
+
+    public BaseException(
+            BaseErrorCode errorCode,
+            Throwable cause
+    ) {
+
+        super(
+                errorCode.getMessage(),
+                cause
+        );
+
         this.errorCode = errorCode;
     }
 }

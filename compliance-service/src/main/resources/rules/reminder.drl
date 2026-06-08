@@ -1,0 +1,36 @@
+package rules
+
+import java.time.LocalDate
+
+import com.compliance.compliance.domain.RuleFact
+
+global com.compliance.compliance.service.NotificationService notificationService
+
+rule "REMINDER"
+
+salience 500
+
+when
+
+$f :
+
+RuleFact(
+
+completedDate==null,
+
+dueDate.minusDays(3)
+.isEqual(
+LocalDate.now()
+)
+
+)
+
+then
+
+notificationService.send(
+"Reminder for compliance"
+);
+
+update($f);
+
+end

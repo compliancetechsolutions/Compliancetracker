@@ -1,0 +1,38 @@
+package rules
+
+import com.compliance.compliance.domain.RuleFact
+import com.compliance.compliance.domain.RuleResult
+
+global RuleResult ruleResult
+
+rule "QUARTERLY_COMPLIANCE"
+
+salience 90
+
+when
+
+$f :
+
+RuleFact(
+
+frequency=="QUARTERLY",
+
+completedDate!=null
+
+)
+
+then
+
+ruleResult.setPassed(true);
+
+ruleResult.setRuleName(
+"QUARTERLY_COMPLIANCE"
+);
+
+ruleResult.setMessage(
+"Quarterly completed"
+);
+
+update($f);
+
+end

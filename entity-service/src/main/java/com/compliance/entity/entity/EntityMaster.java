@@ -5,8 +5,8 @@ import java.util.UUID;
 
 import org.hibernate.annotations.SQLRestriction;
 
+import com.compliance.common.enums.EntityStatus;
 import com.compliance.entity.BaseEntity;
-import com.compliance.enums.EntityStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,6 +22,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+
+
+
+
+
 
 /**
  * Core entity record — companies, funds, or individuals subject to compliance.

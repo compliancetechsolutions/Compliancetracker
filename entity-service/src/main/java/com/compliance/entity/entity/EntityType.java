@@ -29,6 +29,6 @@ public class EntityType extends BaseEntity {
 
 	@Column(name = "type_name")
 	private String typeName;
-
+    @Column(name="description") 
 	private String description;
 }

@@ -26,9 +26,9 @@ import com.compliance.auth.repository.UserRepository;
 import com.compliance.auth.repository.UserSessionRepository;
 import com.compliance.auth.service.AuthService;
 import com.compliance.auth.util.JwtUtil;
+import com.compliance.common.enums.AuthErrorCode;
 import com.compliance.common.exception.BaseException;
 import com.compliance.common.exception.UnauthorizedException;
-import com.compliance.enums.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,17 +53,29 @@ public class AuthServiceImpl implements AuthService {
 		String username = request.getUsername().trim().toLowerCase();
 
 		try {
+
+			System.out.println("REQUEST USERNAME = " + request.getUsername());
+			System.out.println("REQUEST PASSWORD = " + request.getPassword());
 			authManager.authenticate(new UsernamePasswordAuthenticationToken(username, request.getPassword()));
 
 			User user = userRepo.findByUsernameIgnoreCase(username) // ✅ FIX
-					.orElseThrow(() -> new UnauthorizedException(ErrorCode.AUTH_INVALID_CREDENTIALS));
+					.orElseThrow(() -> new UnauthorizedException(AuthErrorCode.AUTH_INVALID_CREDENTIALS));
 
 			List<String> roles = extractRoles(user);
 
 			if (roles == null || roles.isEmpty()) {
-				throw new UnauthorizedException(ErrorCode.AUTH_NO_ROLES);
+				throw new UnauthorizedException(AuthErrorCode.AUTH_NO_ROLES);
 			}
 
+			// deactivate old active sessions
+			List<UserSession> oldSessions = sessionRepo.findByUserIdAndActiveTrue(user.getUserId());
+
+			oldSessions.forEach(session -> {
+				session.setActive(false);
+				session.setSessionEnd(LocalDateTime.now());
+			});
+
+			sessionRepo.saveAll(oldSessions);
 			String accessToken = jwtUtil.generateAccessToken(user.getUsername(), user.getUserId(), roles);
 			String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
 
@@ -78,44 +90,37 @@ public class AuthServiceImpl implements AuthService {
 			log.info("Successful login userId={} roles={}", user.getUserId(), roles);
 
 			return buildResponse(accessToken, refreshToken, user, roles);
-			
+
 		} catch (BadCredentialsException ex) {
 
-		    log.warn("Failed login username={} ip={}", username, ip);
+			log.warn("Failed login username={} ip={}", username, ip);
 
-		    recordFailedLogin(username, ip);
+			recordFailedLogin(username, ip);
 
-		    throw new UnauthorizedException(
-		            ErrorCode.AUTH_INVALID_CREDENTIALS
-		    );
+			throw new UnauthorizedException(AuthErrorCode.AUTH_INVALID_CREDENTIALS);
 
 		} catch (UsernameNotFoundException ex) {
 
-		    log.warn("User not found username={}", username);
+			log.warn("User not found username={}", username);
 
-		    throw new UnauthorizedException(
-		            ErrorCode.AUTH_INVALID_CREDENTIALS
-		    );
+			throw new UnauthorizedException(AuthErrorCode.AUTH_INVALID_CREDENTIALS);
 
 		} catch (DisabledException ex) {
 
-		    throw new UnauthorizedException(
-		            ErrorCode.AUTH_ACCOUNT_DISABLED
-		    );
+			throw new UnauthorizedException(AuthErrorCode.AUTH_ACCOUNT_DISABLED);
 
 		} catch (LockedException ex) {
 
-		    throw new UnauthorizedException(
-		            ErrorCode.AUTH_ACCOUNT_LOCKED
-		    );
+			throw new UnauthorizedException(AuthErrorCode.AUTH_ACCOUNT_LOCKED);
 
 		} catch (Exception ex) {
 
-		    log.error("🔥 REAL LOGIN ERROR username={}", username, ex);
+			log.error("🔥 REAL LOGIN ERROR username={}", username, ex);
 
-		    throw new BaseException(ErrorCode.INTERNAL_SERVER_ERROR);
+			throw new BaseException(AuthErrorCode.INTERNAL_SERVER_ERROR);
 		}
 	}
+
 	// ── REFRESH ───────────────────────────────────────────────────────────────
 	@Override
 	@Transactional
@@ -124,23 +129,33 @@ public class AuthServiceImpl implements AuthService {
 		String hashedToken = hash(rawRefreshToken);
 
 		RefreshToken stored = refreshRepo.findByToken(hashedToken)
-				.orElseThrow(() -> new UnauthorizedException(ErrorCode.AUTH_TOKEN_REVOKED));
+				.orElseThrow(() -> new UnauthorizedException(AuthErrorCode.AUTH_TOKEN_REVOKED));
 
 		// Token-reuse detection (refresh token rotation)
 		if (stored.isRevoked()) {
 			log.warn("Refresh token reuse detected — revoking all sessions userId={}", stored.getUserId());
 			revokeAllTokensAndSessions(stored.getUserId());
-			throw new UnauthorizedException(ErrorCode.AUTH_TOKEN_REUSE);
+			throw new UnauthorizedException(AuthErrorCode.AUTH_TOKEN_REUSE);
 		}
 
 		if (stored.isExpired()) {
-			throw new UnauthorizedException(ErrorCode.AUTH_TOKEN_EXPIRED);
+			throw new UnauthorizedException(AuthErrorCode.AUTH_TOKEN_EXPIRED);
 		}
 
 		User user = userRepo.findById(stored.getUserId())
-				.orElseThrow(() -> new UnauthorizedException(ErrorCode.USER_NOT_FOUND));
+				.orElseThrow(() -> new UnauthorizedException(AuthErrorCode.USER_NOT_FOUND));
 
 		List<String> roles = extractRoles(user);
+
+		// deactivate old active sessions
+		List<UserSession> oldSessions = sessionRepo.findByUserIdAndActiveTrue(user.getUserId());
+
+		oldSessions.forEach(session -> {
+			session.setActive(false);
+			session.setSessionEnd(LocalDateTime.now());
+		});
+
+		sessionRepo.saveAll(oldSessions);
 
 		// Rotate: revoke old, issue new
 		stored.setRevoked(true);
@@ -154,6 +169,9 @@ public class AuthServiceImpl implements AuthService {
 
 		log.info("Token refreshed userId={}", user.getUserId());
 
+		sessionRepo.save(UserSession.builder().sessionId(UUID.randomUUID()).userId(user.getUserId()).jwtToken(newAccess)
+				.sessionStart(LocalDateTime.now()).active(true).build());
+
 		return buildResponse(newAccess, newRefresh, user, roles);
 	}
 
@@ -165,7 +183,7 @@ public class AuthServiceImpl implements AuthService {
 		String hashedToken = hash(rawRefreshToken);
 
 		RefreshToken stored = refreshRepo.findByToken(hashedToken)
-				.orElseThrow(() -> new UnauthorizedException(ErrorCode.AUTH_TOKEN_REVOKED));
+				.orElseThrow(() -> new UnauthorizedException(AuthErrorCode.AUTH_TOKEN_REVOKED));
 
 		UUID userId = stored.getUserId();
 
@@ -221,4 +239,14 @@ public class AuthServiceImpl implements AuthService {
 	private String hash(String token) {
 		return DigestUtils.sha256Hex(token);
 	}
+
+	/*
+	 * @Bean CommandLineRunner runner() { return args -> {
+	 * 
+	 * BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+	 * 
+	 * String hash = encoder.encode("Admin@123");
+	 * 
+	 * System.out.println("HASH = " + hash); }; }
+	 */
 }

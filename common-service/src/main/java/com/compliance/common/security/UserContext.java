@@ -11,7 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.compliance.enums.Role;
+import com.compliance.common.enums.Role;
 
 import java.util.Objects;
 

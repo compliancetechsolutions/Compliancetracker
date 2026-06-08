@@ -1,5 +1,5 @@
 package com.compliance.auth.serviceimpl;
-
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -24,15 +24,19 @@ import com.compliance.auth.dto.UserResponseDto;
 import com.compliance.auth.entity.Role;
 import com.compliance.auth.entity.User;
 import com.compliance.auth.entity.UserRole;
+import com.compliance.auth.event.UserEventProducer;
 import com.compliance.auth.mapper.UserMapper;
 import com.compliance.auth.repository.RoleRepository;
 import com.compliance.auth.repository.UserRepository;
 import com.compliance.auth.repository.UserRoleRepository;
 import com.compliance.auth.service.UserService;
+import com.compliance.common.enums.AuthErrorCode;
+import com.compliance.common.enums.UserErrorCode;
 import com.compliance.common.exception.BaseException;
 import com.compliance.common.exception.ResourceNotFoundException;
 import com.compliance.common.exception.UserAlreadyExistsException;
-import com.compliance.enums.ErrorCode;
+import com.compliance.common.kafka.event.UserEvent;
+import com.compliance.common.kafka.event.UserEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +52,7 @@ public class UserServiceImpl implements UserService {
 	private final UserRoleRepository userRoleRepo;
 	private final UserMapper userMapper;
 	private final PasswordEncoder passwordEncoder;
+	private final UserEventProducer userEventProducer;
 
 	// =========================================================
 	// CREATE
@@ -58,15 +63,15 @@ public class UserServiceImpl implements UserService {
 		log.info("CREATE USER API HIT");
 
 		if (userRepo.existsByUsernameIgnoreCase(request.getUsername())) {
-			throw new UserAlreadyExistsException(ErrorCode.USER_ALREADY_EXISTS);
+			throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
 		}
 
 		if (userRepo.existsByEmailIgnoreCase(request.getEmail())) {
-			throw new UserAlreadyExistsException(ErrorCode.USER_ALREADY_EXISTS);
+			throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
 		}
 
 		if (request.getRoles() == null || request.getRoles().isEmpty()) {
-			throw new BaseException(ErrorCode.USER_MUST_HAVE_ROLE);
+			throw new BaseException(UserErrorCode.USER_MUST_HAVE_ROLE);
 		}
 
 		User user = User.builder().username(request.getUsername().trim().toLowerCase())
@@ -81,9 +86,39 @@ public class UserServiceImpl implements UserService {
 		userRepo.flush();
 
 		User reloaded = userRepo.findByIdWithRoles(savedUser.getUserId())
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, savedUser.getUserId()));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, savedUser.getUserId()));
+
+		// =====================================
+		// PUBLISH USER EVENT
+		// =====================================
+
+		UserEvent event = UserEvent.builder()
+
+				.eventId(UUID.randomUUID())
+
+				.createdAt(LocalDateTime.now())
+
+				.eventType("USER_CREATED")
+
+				.userId(reloaded.getUserId())
+
+				.username(reloaded.getUsername())
+
+				.email(reloaded.getEmail())
+
+				.status(reloaded.getStatus())
+
+				.roles(
+
+						reloaded.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+								.collect(Collectors.toSet()))
+
+				.build();
+
+		userEventProducer.publishUserCreatedEvent(event.getEventId(), event);
 
 		return userMapper.toDto(reloaded);
+
 	}
 
 	// =========================================================
@@ -93,7 +128,16 @@ public class UserServiceImpl implements UserService {
 	public UserResponseDto update(UUID userId, UpdateUserRequestDto request) {
 
 		User user = userRepo.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, userId));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
+
+		UserEvent event = UserEvent.builder().eventId(UUID.randomUUID()).eventType(UserEventType.UPDATE_USER)
+				.aggregateId(user.getUserId()).serviceName("auth-service").userId(user.getUserId())
+				.username(user.getUsername()).email(user.getEmail()).performedBy("SYSTEM")
+				.actionTime(LocalDateTime.now()).build();
+
+		userEventProducer.publish(event);
+
+		log.info("Publishing UPDATE_USER event: {}", event);
 
 		return updateUserFields(user, request);
 	}
@@ -106,7 +150,7 @@ public class UserServiceImpl implements UserService {
 	public Optional<UserResponseDto> getById(UUID userId) {
 
 		return Optional.of(userMapper.toDto(userRepo.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, userId))));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId))));
 	}
 
 	// =========================================================
@@ -126,12 +170,29 @@ public class UserServiceImpl implements UserService {
 	public void delete(UUID userId) {
 
 		User user = userRepo.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, userId));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
 
 		user.setIsDeleted(true);
 		user.setStatus("INACTIVE");
 
 		userRepo.save(user);
+
+		// =====================================
+		// PUBLISH EVENT
+		// =====================================
+
+		UserEvent event = UserEvent.builder().eventId(UUID.randomUUID()).createdAt(LocalDateTime.now())
+
+				.eventType("USER_DELETED")
+
+				.userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).status(user.getStatus())
+
+				.roles(user.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+						.collect(Collectors.toSet()))
+				.build();
+
+		userEventProducer.publish(event);
+
 	}
 
 	// =========================================================
@@ -142,14 +203,14 @@ public class UserServiceImpl implements UserService {
 	public UserResponseDto getUserByUsername(String username) {
 
 		return userMapper.toDto(userRepo.findByUsernameIgnoreCase(username.trim())
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, username)));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, username)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public List<String> getUserRoles(UUID userId) {
-		 userRepo.findById(userId).orElseThrow(
-				() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, "User ID not found: " + userId));
+		userRepo.findById(userId).orElseThrow(
+				() -> new ResourceNotFoundException(AuthErrorCode.USER_NOT_FOUND, "User ID not found: " + userId));
 
 		return userRoleRepo.findByUser_UserId(userId).stream().map(ur -> ur.getRole().getRoleName()).toList();
 	}
@@ -164,7 +225,7 @@ public class UserServiceImpl implements UserService {
 	public RoleAssignmentResultDto assignRolesToUser(UUID userId, List<String> roleNames) {
 
 		User user = userRepo.findByIdWithRoles(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, userId));
+				.orElseThrow(() -> new ResourceNotFoundException(AuthErrorCode.USER_NOT_FOUND, userId));
 
 		Set<String> requestedRoles = roleNames.stream().filter(Objects::nonNull).map(String::trim)
 				.map(String::toUpperCase).collect(Collectors.toSet());
@@ -185,7 +246,7 @@ public class UserServiceImpl implements UserService {
 
 			Optional<Role> roleOpt = roleRepo.findByRoleNameIgnoreCase(roleName);
 			if (roleOpt.isEmpty()) {
-				throw new ResourceNotFoundException(ErrorCode.ROLE_NOT_FOUND, "Role not found: " + roleName);
+				throw new ResourceNotFoundException(UserErrorCode.ROLE_NOT_FOUND, "Role not found: " + roleName);
 			}
 			Role role = roleOpt.get();
 
@@ -198,6 +259,26 @@ public class UserServiceImpl implements UserService {
 
 		userRepo.save(user);
 
+		// =====================================
+		// PUBLISH USER ROLE UPDATED EVENT
+		// =====================================
+
+		User reloaded = userRepo.findByIdWithRoles(userId)
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
+
+		UserEvent event = UserEvent.builder().eventId(UUID.randomUUID()).createdAt(LocalDateTime.now())
+
+				.eventType("USER_ROLE_UPDATED")
+
+				.userId(reloaded.getUserId()).username(reloaded.getUsername()).email(reloaded.getEmail())
+				.status(reloaded.getStatus())
+
+				.roles(reloaded.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+						.collect(Collectors.toSet()))
+				.build();
+
+		userEventProducer.publish(event);
+
 		return new RoleAssignmentResultDto(added, skipped, notFound);
 	}
 
@@ -205,13 +286,13 @@ public class UserServiceImpl implements UserService {
 	public void removeRoleFromUser(UUID userId, String roleName) {
 
 		User user = userRepo.findByIdWithRoles(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND, userId));
+				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
 
 		boolean removed = user.getUserRoles()
 				.removeIf(ur -> ur.getRole() != null && ur.getRole().getRoleName().equalsIgnoreCase(roleName));
 
 		if (!removed) {
-			throw new ResourceNotFoundException(ErrorCode.ROLE_NOT_FOUND, roleName);
+			throw new ResourceNotFoundException(UserErrorCode.ROLE_NOT_FOUND, roleName);
 		}
 
 		userRepo.save(user);
@@ -229,7 +310,7 @@ public class UserServiceImpl implements UserService {
 
 		if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepo.existsByEmailIgnoreCase(newEmail)) {
 
-			throw new UserAlreadyExistsException(ErrorCode.USER_ALREADY_EXISTS);
+			throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
 		}
 
 		user.setEmail(newEmail);
@@ -292,6 +373,18 @@ public class UserServiceImpl implements UserService {
 				if (dto.getRoles() != null) {
 					assignRolesToUser(savedUser.getUserId(), new ArrayList<>(dto.getRoles()));
 				}
+
+				// =========================
+				// PUBLISH EVENT
+				// =========================
+
+				UserEvent event = UserEvent.builder().eventType("USER_CREATED").userId(savedUser.getUserId())
+						.username(savedUser.getUsername()).email(savedUser.getEmail())
+						.firstName(savedUser.getFirstName()).lastName(savedUser.getLastName())
+						.status(savedUser.getStatus()).build();
+
+				userEventProducer.publish(event);
+
 				createdUsers.add(userMapper.toDto(savedUser));
 			} catch (Exception ex) {
 
@@ -300,13 +393,8 @@ public class UserServiceImpl implements UserService {
 			}
 		}
 
-		return BulkUserCreateResponseDto.builder()
-				.message(createdUsers.size() + " users created successfully")
-				.totalRequested(request.getUsers().size())
-				.createdCount(createdUsers.size())
-				.skippedCount(skippedUsers.size())
-				.createdUsers(createdUsers)
-				.skippedUsers(skippedUsers)
-				.build();
+		return BulkUserCreateResponseDto.builder().message(createdUsers.size() + " users created successfully")
+				.totalRequested(request.getUsers().size()).createdCount(createdUsers.size())
+				.skippedCount(skippedUsers.size()).createdUsers(createdUsers).skippedUsers(skippedUsers).build();
 	}
 }
