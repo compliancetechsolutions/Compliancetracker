@@ -16,15 +16,15 @@ import com.compliance.compliance.entity.ComplianceRecord;
 
 public interface DashboardRepository extends BaseRepository<ComplianceRecord, UUID> {
 
-	Long countByStatus(String status);
+  Long countByStatus(String status);
 
-	@Query("""
+  @Query("""
 
-			SELECT c
-			FROM ComplianceRecord c
-			ORDER BY c.dueDate ASC
-			""")
+      SELECT c
+      FROM ComplianceRecord c
+      ORDER BY c.dueDate ASC
+      """)
 
-	List<ComplianceRecord> findUpcoming();
+  List<ComplianceRecord> findUpcoming();
 
 }

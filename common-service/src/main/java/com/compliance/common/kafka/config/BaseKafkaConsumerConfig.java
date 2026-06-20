@@ -17,173 +17,173 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 
 public abstract class BaseKafkaConsumerConfig<T> {
 
-	private final Class<T> eventClass;
+  private final Class<T> eventClass;
 
-	@Value("${spring.kafka.bootstrap-servers}")
-	private String bootstrapServers;
+  @Value("${spring.kafka.bootstrap-servers}")
+  private String bootstrapServers;
 
 // ==========================================
 // OVERRIDABLE
 // ==========================================
 
-	protected abstract String getGroupId();
+  protected abstract String getGroupId();
 
-	protected int maxPollRecords() {
+  protected int maxPollRecords() {
 
-		return 500;
+    return 500;
 
-	}
+  }
 
-	protected String offsetStrategy() {
+  protected String offsetStrategy() {
 
-		return "earliest";
+    return "earliest";
 
-	}
+  }
 
-	protected int concurrency() {
+  protected int concurrency() {
 
-		return 3;
+    return 3;
 
-	}
+  }
 
 // ==========================================
 // BUILD CONFIG
 // ==========================================
 
-	protected Map<String, Object> buildConsumerConfig() {
+  protected Map<String, Object> buildConsumerConfig() {
 
-		Map<String, Object> config = new HashMap<>();
+    Map<String, Object> config = new HashMap<>();
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
 
-				bootstrapServers
+        bootstrapServers
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.GROUP_ID_CONFIG,
+        ConsumerConfig.GROUP_ID_CONFIG,
 
-				getGroupId()
+        getGroupId()
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
 
-				StringDeserializer.class
+        StringDeserializer.class
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
 
-				JsonDeserializer.class
+        JsonDeserializer.class
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
 
-				offsetStrategy()
+        offsetStrategy()
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
 
-				false
+        false
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
 
-				maxPollRecords()
+        maxPollRecords()
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG,
+        ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG,
 
-				300000
+        300000
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
+        ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
 
-				30000
+        30000
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
+        ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
 
-				10000
+        10000
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.FETCH_MIN_BYTES_CONFIG,
+        ConsumerConfig.FETCH_MIN_BYTES_CONFIG,
 
-				1024
+        1024
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG,
+        ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG,
 
-				500
+        500
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				JsonDeserializer.TRUSTED_PACKAGES,
+        JsonDeserializer.TRUSTED_PACKAGES,
 
-				eventClass.getPackageName()
+        eventClass.getPackageName()
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				JsonDeserializer.VALUE_DEFAULT_TYPE,
+        JsonDeserializer.VALUE_DEFAULT_TYPE,
 
-				eventClass.getName()
+        eventClass.getName()
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				JsonDeserializer.USE_TYPE_INFO_HEADERS,
+        JsonDeserializer.USE_TYPE_INFO_HEADERS,
 
-				false
+        false
 
-		);
+    );
 
-		config.put(
+    config.put(
 
-				ConsumerConfig.ISOLATION_LEVEL_CONFIG,
+        ConsumerConfig.ISOLATION_LEVEL_CONFIG,
 
-				"read_committed"
+        "read_committed"
 
-		);
+    );
 
-		return config;
+    return config;
 
-	}
+  }
 
 }

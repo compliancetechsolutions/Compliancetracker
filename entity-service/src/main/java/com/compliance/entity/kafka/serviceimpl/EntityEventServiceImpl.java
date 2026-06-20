@@ -16,6 +16,7 @@ import com.compliance.entity.kafka.producer.RepresentativeEntityProducer;
 import com.compliance.entity.kafka.service.EntityEventService;
 import com.compliance.entity.repository.EntityRepository;
 import com.compliance.entity.repository.EntityUserMapperRepository;
+import com.compliance.entity.service.EntityService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class EntityEventServiceImpl implements EntityEventService {
 
+	private final EntityService entityService;
 	// =====================================================
 	// REPOSITORIES
 	// =====================================================
@@ -77,55 +79,46 @@ public class EntityEventServiceImpl implements EntityEventService {
 		// CREATE ENTITY
 		// =================================================
 
-		EntityMaster entity = EntityMaster.builder()
-
-				.entityId(UUID.randomUUID())
-
-				.entityName(event.getUsername() + "-ENTITY")
-
-				.registrationNumber("AUTO-" + System.currentTimeMillis())
-
-				.status(EntityStatus.ACTIVE)
-
-				.build();
-
+		EntityMaster entity = EntityMaster.builder().entityId(UUID.randomUUID())
+				.entityName(event.getUsername() + "-ENTITY").registrationNumber(generateRegistrationNumber())
+				.status(EntityStatus.ACTIVE).build();
 		entity.setVersion(0L);
-
 		entity.setIsDeleted(false);
-
 		EntityMaster savedEntity = entityRepo.save(entity);
 
 		// =================================================
 		// RELATIONSHIP TYPE
 		// =================================================
 
-		String relationshipType = event.getRoles() != null && event.getRoles().contains("INVESTOR")
+		String relationshipType =
 
-				? "PRIMARY_INVESTOR"
+				event.getRoles() != null && event.getRoles().stream().anyMatch(r -> "INVESTOR".equalsIgnoreCase(r))
+						? "PRIMARY_INVESTOR"
+						: "REPRESENTATIVE";
 
-				: "REPRESENTATIVE";
-
-		// =================================================
-		// MAP USER
-		// =================================================
-
-		EntityUserMapper mapperEntity = EntityUserMapper.builder()
-
-				.entityUserId(UUID.randomUUID())
-
-				.entityId(savedEntity.getEntityId())
-
-				.userId(event.getUserId())
-
-				.relationshipType(relationshipType)
-
-				.build();
-
-		mapperEntity.setVersion(0L);
-
-		mapperEntity.setIsDeleted(false);
-
-		mapperRepo.save(mapperEntity);
+		createUserMapping(savedEntity.getEntityId(), event, relationshipType);
+		/*
+		 * // ================================================= // MAP USER //
+		 * =================================================
+		 * 
+		 * EntityUserMapper mapperEntity = EntityUserMapper.builder()
+		 * 
+		 * .entityUserId(UUID.randomUUID())
+		 * 
+		 * .entityId(savedEntity.getEntityId())
+		 * 
+		 * .userId(event.getUserId())
+		 * 
+		 * .relationshipType(relationshipType)
+		 * 
+		 * .build();
+		 * 
+		 * mapperEntity.setVersion(0L);
+		 * 
+		 * mapperEntity.setIsDeleted(false);
+		 * 
+		 * mapperRepo.save(mapperEntity);
+		 */
 
 		// =================================================
 		// PRODUCE INVESTOR EVENT
@@ -133,21 +126,10 @@ public class EntityEventServiceImpl implements EntityEventService {
 
 		if ("PRIMARY_INVESTOR".equals(relationshipType)) {
 
-			InvestorEntityEvent investorEvent = InvestorEntityEvent.builder()
-
-					.eventId(UUID.randomUUID())
-
-					.entityId(savedEntity.getEntityId())
-
-					.userId(event.getUserId())
-
-					.entityName(savedEntity.getEntityName())
-
-					.relationshipType(relationshipType)
-
-					.eventType("INVESTOR_ENTITY_CREATED")
-
-					.build();
+			InvestorEntityEvent investorEvent = InvestorEntityEvent.builder().id(UUID.randomUUID())
+					.entityId(savedEntity.getEntityId()).userId(event.getUserId())
+					.entityName(savedEntity.getEntityName()).relationshipType(relationshipType)
+					.eventType("INVESTOR_ENTITY_CREATED").build();
 
 			investorProducer.publish(investorEvent);
 
@@ -162,7 +144,7 @@ public class EntityEventServiceImpl implements EntityEventService {
 
 			RepresentativeEntityEvent representativeEvent = RepresentativeEntityEvent.builder()
 
-					.eventId(UUID.randomUUID())
+					.id(UUID.randomUUID())
 
 					.entityId(savedEntity.getEntityId())
 
@@ -197,13 +179,17 @@ public class EntityEventServiceImpl implements EntityEventService {
 
 		log.info("Processing USER_DELETED userId={}", event.getUserId());
 
-		mapperRepo.findByUserIdAndIsDeletedFalse(event.getUserId()).forEach(mapper -> {
+		var mappings =
 
-			mapper.setIsDeleted(true);
+				mapperRepo.findByUserIdAndIsDeletedFalse(event.getUserId());
 
-			mapperRepo.save(mapper);
-		});
+		mappings.forEach(
 
+				mapper ->
+
+				mapper.setIsDeleted(true));
+
+		mapperRepo.saveAll(mappings);
 		log.info("User mappings soft deleted userId={}", event.getUserId());
 	}
 
@@ -220,4 +206,63 @@ public class EntityEventServiceImpl implements EntityEventService {
 		// FUTURE ROLE SYNC LOGIC
 		// =================================================
 	}
+
+	@Override
+	public void createEntityFromUser(UserEvent event) {
+
+		entityService.createEntityFromUser(event);
+
+	}
+
+	private String generateRegistrationNumber() {
+
+		return "AUTO-"
+
+				+
+
+				UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+	}
+
+	private EntityUserMapper createUserMapping(UUID entityId, UserEvent event, String relationshipType) {
+
+		if (
+
+		mapperRepo.countByUserIdAndIsDeletedFalse(event.getUserId())
+
+				>
+
+				0
+
+		) {
+
+			log.warn(
+
+					"User already mapped userId={}",
+
+					event.getUserId());
+
+			return null;
+		}
+
+		EntityUserMapper mapper =
+
+				EntityUserMapper.builder()
+
+						.entityUserId(UUID.randomUUID())
+
+						.entityId(entityId)
+
+						.userId(event.getUserId())
+
+						.relationshipType(relationshipType)
+
+						.build();
+
+		mapper.setVersion(0L);
+
+		mapper.setIsDeleted(false);
+
+		return mapperRepo.save(mapper);
+	}
+
 }

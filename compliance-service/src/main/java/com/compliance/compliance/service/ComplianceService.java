@@ -18,42 +18,30 @@ public interface ComplianceService {
 // CRUD
 // ======================================
 
-	ComplianceResponse create(ComplianceRequest request);
+  ComplianceResponse create(ComplianceRequest request);
 
-	ComplianceResponse getById(UUID complianceId);
+  ComplianceResponse getById(UUID complianceId);
 
-	Page<ComplianceResponse> getAll(Pageable pageable);
+  Page<ComplianceResponse> getAll(Pageable pageable);
 
-	ComplianceResponse update(UUID complianceId, ComplianceRequest request);
+  ComplianceResponse update(UUID complianceId, ComplianceRequest request);
 
-	void delete(UUID complianceId);
+  void delete(UUID complianceId);
 
 // ======================================
 // EXECUTION
 // ======================================
 
-	void processCompliance(ComplianceCreatedEvent event);
+  void processCompliance(ComplianceCreatedEvent event);
 
-	void completeCompliance(ComplianceCompletedEvent event);
+  void completeCompliance(ComplianceCompletedEvent event);
 
-	ComplianceResponse executeRules(UUID complianceId);
-
-// ======================================
-// SCHEDULER
-// ======================================
-
-	void executeDailyCompliance();
-
-// FIX 1
-	void sendReminder(LocalDate date);
-
-// FIX 2
-	void markOverdue();
+  ComplianceResponse executeRules(UUID complianceId);
 
 // ======================================
 // EVENTS
 // ======================================
 
-	boolean alreadyProcessed(UUID eventId);
+  boolean alreadyProcessed(UUID eventId);
 
 }

@@ -1,4 +1,5 @@
 package com.compliance.auth.serviceimpl;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,354 +48,419 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class UserServiceImpl implements UserService {
 
-	private final UserRepository userRepo;
-	private final RoleRepository roleRepo;
-	private final UserRoleRepository userRoleRepo;
-	private final UserMapper userMapper;
-	private final PasswordEncoder passwordEncoder;
-	private final UserEventProducer userEventProducer;
+  private final UserRepository userRepo;
+  private final RoleRepository roleRepo;
+  private final UserRoleRepository userRoleRepo;
+  private final UserMapper userMapper;
+  private final PasswordEncoder passwordEncoder;
+  private final UserEventProducer userEventProducer;
 
-	// =========================================================
-	// CREATE
-	// =========================================================
-	@Override
-	public UserResponseDto create(CreateUserRequestDto request) {
+  // =========================================================
+  // CREATE
+  // =========================================================
+  @Override
+  public UserResponseDto create(CreateUserRequestDto request) {
 
-		log.info("CREATE USER API HIT");
+    log.info("CREATE USER API HIT");
 
-		if (userRepo.existsByUsernameIgnoreCase(request.getUsername())) {
-			throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
-		}
+    if (userRepo.existsByUsernameIgnoreCase(request.getUsername())) {
+      throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
+    }
 
-		if (userRepo.existsByEmailIgnoreCase(request.getEmail())) {
-			throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
-		}
+    if (userRepo.existsByEmailIgnoreCase(request.getEmail())) {
+      throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
+    }
 
-		if (request.getRoles() == null || request.getRoles().isEmpty()) {
-			throw new BaseException(UserErrorCode.USER_MUST_HAVE_ROLE);
-		}
+    if (request.getRoles() == null || request.getRoles().isEmpty()) {
+      throw new BaseException(UserErrorCode.USER_MUST_HAVE_ROLE);
+    }
 
-		User user = User.builder().username(request.getUsername().trim().toLowerCase())
-				.email(request.getEmail().trim().toLowerCase())
-				.passwordHash(passwordEncoder.encode(request.getPassword())).firstName(request.getFirstName())
-				.lastName(request.getLastName()).status("ACTIVE").build();
+    User user = User.builder().username(request.getUsername().trim().toLowerCase())
+        .email(request.getEmail().trim().toLowerCase())
+        .passwordHash(passwordEncoder.encode(request.getPassword())).firstName(request.getFirstName())
+        .lastName(request.getLastName()).status("ACTIVE").build();
 
-		User savedUser = userRepo.saveAndFlush(user);
+    User savedUser = userRepo.saveAndFlush(user);
 
-		assignRolesToUser(savedUser.getUserId(), new ArrayList<>(request.getRoles()));
+    assignRolesToUser(savedUser.getUserId(), new ArrayList<>(request.getRoles()));
 
-		userRepo.flush();
+    userRepo.flush();
 
-		User reloaded = userRepo.findByIdWithRoles(savedUser.getUserId())
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, savedUser.getUserId()));
+    User reloaded = userRepo.findByIdWithRoles(savedUser.getUserId())
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, savedUser.getUserId()));
 
-		// =====================================
-		// PUBLISH USER EVENT
-		// =====================================
+    // =====================================
+    // PUBLISH USER EVENT
+    // =====================================
 
-		UserEvent event = UserEvent.builder()
+    UserEvent event = UserEvent.builder()
 
-				.eventId(UUID.randomUUID())
+        .id(UUID.randomUUID()).createdAt(LocalDateTime.now()).eventType("USER_CREATED")
+        .userId(reloaded.getUserId()).username(reloaded.getUsername()).email(reloaded.getEmail())
+        .status(reloaded.getStatus()).roles(
 
-				.createdAt(LocalDateTime.now())
+            reloaded.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+                .collect(Collectors.toSet()))
 
-				.eventType("USER_CREATED")
+        .build();
 
-				.userId(reloaded.getUserId())
+    userEventProducer.publishUserCreatedEvent(event.getId(), event);
 
-				.username(reloaded.getUsername())
+    return userMapper.toDto(reloaded);
 
-				.email(reloaded.getEmail())
+  }
 
-				.status(reloaded.getStatus())
+  // =====================================
+  // UPDATE
+  // =====================================
 
-				.roles(
+  @Override
+  public UserResponseDto update(UUID userId, UpdateUserRequestDto request) {
 
-						reloaded.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
-								.collect(Collectors.toSet()))
+    User user = userRepo.findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
 
-				.build();
+    Set<String> roles = user.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+        .collect(Collectors.toSet());
 
-		userEventProducer.publishUserCreatedEvent(event.getEventId(), event);
+    if (roles == null || roles.isEmpty()) {
 
-		return userMapper.toDto(reloaded);
+      throw new BaseException(UserErrorCode.USER_MUST_HAVE_ROLE);
 
-	}
+    }
 
-	// =========================================================
-	// UPDATE
-	// =========================================================
-	@Override
-	public UserResponseDto update(UUID userId, UpdateUserRequestDto request) {
+    // =====================================
+    // Publish User Events
+    // =====================================
 
-		User user = userRepo.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
+    UserEvent event = UserEvent.builder()
 
-		UserEvent event = UserEvent.builder().eventId(UUID.randomUUID()).eventType(UserEventType.UPDATE_USER)
-				.aggregateId(user.getUserId()).serviceName("auth-service").userId(user.getUserId())
-				.username(user.getUsername()).email(user.getEmail()).performedBy("SYSTEM")
-				.actionTime(LocalDateTime.now()).build();
+        .id(UUID.randomUUID())
 
-		userEventProducer.publish(event);
+        .eventType(UserEventType.UPDATE_USER)
+        .roles(roles)
 
-		log.info("Publishing UPDATE_USER event: {}", event);
+        .aggregateId(user.getUserId())
 
-		return updateUserFields(user, request);
-	}
+        .serviceName("auth-service")
 
-	// =========================================================
-	// GET BY ID
-	// =========================================================
-	@Override
-	@Transactional(readOnly = true)
-	public Optional<UserResponseDto> getById(UUID userId) {
+        .userId(user.getUserId())
 
-		return Optional.of(userMapper.toDto(userRepo.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId))));
-	}
+        .username(user.getUsername())
 
-	// =========================================================
-	// GET ALL
-	// =========================================================
-	@Override
-	@Transactional(readOnly = true)
-	public Page<UserResponseDto> getAll(Pageable pageable) {
+        .email(user.getEmail())
 
-		return userRepo.findAll(pageable).map(userMapper::toDto);
-	}
+        .roles(roles)
 
-	// =========================================================
-	// DELETE (SOFT DELETE)
-	// =========================================================
-	@Override
-	public void delete(UUID userId) {
+        .performedBy("SYSTEM")
 
-		User user = userRepo.findById(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
+        .actionTime(LocalDateTime.now())
 
-		user.setIsDeleted(true);
-		user.setStatus("INACTIVE");
+        .build();
 
-		userRepo.save(user);
+    log.info("Publishing UPDATE_USER event: {}", event);
 
-		// =====================================
-		// PUBLISH EVENT
-		// =====================================
+    userEventProducer.publish(event);
 
-		UserEvent event = UserEvent.builder().eventId(UUID.randomUUID()).createdAt(LocalDateTime.now())
+    return updateUserFields(user, request);
 
-				.eventType("USER_DELETED")
+  }
 
-				.userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).status(user.getStatus())
+  // =========================================================
+  // GET BY ID
+  // =========================================================
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<UserResponseDto> getById(UUID userId) {
 
-				.roles(user.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
-						.collect(Collectors.toSet()))
-				.build();
+    return Optional.of(userMapper.toDto(userRepo.findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId))));
+  }
 
-		userEventProducer.publish(event);
+  // =========================================================
+  // GET ALL
+  // =========================================================
+  @Override
+  @Transactional(readOnly = true)
+  public Page<UserResponseDto> getAll(Pageable pageable) {
 
-	}
+    return userRepo.findAll(pageable).map(userMapper::toDto);
+  }
 
-	// =========================================================
-	// EXTRA METHODS
-	// =========================================================
-	@Override
-	@Transactional(readOnly = true)
-	public UserResponseDto getUserByUsername(String username) {
+  // =========================================================
+  // DELETE (SOFT DELETE)
+  // =========================================================
+  @Override
+  public void delete(UUID userId) {
 
-		return userMapper.toDto(userRepo.findByUsernameIgnoreCase(username.trim())
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, username)));
-	}
+    User user = userRepo.findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
 
-	@Override
-	@Transactional(readOnly = true)
-	public List<String> getUserRoles(UUID userId) {
-		userRepo.findById(userId).orElseThrow(
-				() -> new ResourceNotFoundException(AuthErrorCode.USER_NOT_FOUND, "User ID not found: " + userId));
+    user.setIsDeleted(true);
+    user.setStatus("INACTIVE");
 
-		return userRoleRepo.findByUser_UserId(userId).stream().map(ur -> ur.getRole().getRoleName()).toList();
-	}
+    userRepo.save(user);
 
-	@Override
-	public void assignRoleToUser(UUID userId, String roleName) {
+    // =====================================
+    // PUBLISH EVENT
+    // =====================================
 
-		assignRolesToUser(userId, List.of(roleName));
-	}
+    UserEvent event = UserEvent.builder().id(UUID.randomUUID()).createdAt(LocalDateTime.now())
 
-	@Override
-	public RoleAssignmentResultDto assignRolesToUser(UUID userId, List<String> roleNames) {
+        .eventType("USER_DELETED")
 
-		User user = userRepo.findByIdWithRoles(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(AuthErrorCode.USER_NOT_FOUND, userId));
+        .userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).status(user.getStatus())
 
-		Set<String> requestedRoles = roleNames.stream().filter(Objects::nonNull).map(String::trim)
-				.map(String::toUpperCase).collect(Collectors.toSet());
+        .roles(user.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+            .collect(Collectors.toSet()))
+        .build();
 
-		Set<String> existingRoles = user.getUserRoles().stream().map(ur -> ur.getRole().getRoleName().toUpperCase())
-				.collect(Collectors.toSet());
+    userEventProducer.publish(event);
 
-		List<String> added = new ArrayList<>();
-		List<String> skipped = new ArrayList<>();
-		List<String> notFound = new ArrayList<>();
+  }
 
-		for (String roleName : requestedRoles) {
+  // =========================================================
+  // EXTRA METHODS
+  // =========================================================
+  @Override
+  @Transactional(readOnly = true)
+  public UserResponseDto getUserByUsername(String username) {
 
-			if (existingRoles.contains(roleName)) {
-				skipped.add(roleName);
-				continue;
-			}
+    return userMapper.toDto(userRepo.findByUsernameIgnoreCase(username.trim())
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, username)));
+  }
 
-			Optional<Role> roleOpt = roleRepo.findByRoleNameIgnoreCase(roleName);
-			if (roleOpt.isEmpty()) {
-				throw new ResourceNotFoundException(UserErrorCode.ROLE_NOT_FOUND, "Role not found: " + roleName);
-			}
-			Role role = roleOpt.get();
+  @Override
+  @Transactional(readOnly = true)
+  public List<String> getUserRoles(UUID userId) {
+    userRepo.findById(userId).orElseThrow(
+        () -> new ResourceNotFoundException(AuthErrorCode.USER_NOT_FOUND, "User ID not found: " + userId));
 
-			UserRole userRole = UserRole.builder().userRoleId(UUID.randomUUID()).user(user).role(role).build();
+    return userRoleRepo.findByUser_UserId(userId).stream().map(ur -> ur.getRole().getRoleName()).toList();
+  }
 
-			user.getUserRoles().add(userRole);
+  @Override
+  public void assignRoleToUser(UUID userId, String roleName) {
 
-			added.add(roleName);
-		}
+    assignRolesToUser(userId, List.of(roleName));
+  }
 
-		userRepo.save(user);
+  @Override
+  public RoleAssignmentResultDto assignRolesToUser(UUID userId, List<String> roleNames) {
 
-		// =====================================
-		// PUBLISH USER ROLE UPDATED EVENT
-		// =====================================
+    User user = userRepo.findByIdWithRoles(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(AuthErrorCode.USER_NOT_FOUND, userId));
 
-		User reloaded = userRepo.findByIdWithRoles(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
+    Set<String> requestedRoles = roleNames.stream().filter(Objects::nonNull).map(String::trim)
+        .map(String::toUpperCase).collect(Collectors.toSet());
 
-		UserEvent event = UserEvent.builder().eventId(UUID.randomUUID()).createdAt(LocalDateTime.now())
+    Set<String> existingRoles = user.getUserRoles().stream().map(ur -> ur.getRole().getRoleName().toUpperCase())
+        .collect(Collectors.toSet());
 
-				.eventType("USER_ROLE_UPDATED")
+    List<String> added = new ArrayList<>();
+    List<String> skipped = new ArrayList<>();
+    List<String> notFound = new ArrayList<>();
 
-				.userId(reloaded.getUserId()).username(reloaded.getUsername()).email(reloaded.getEmail())
-				.status(reloaded.getStatus())
+    for (String roleName : requestedRoles) {
 
-				.roles(reloaded.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
-						.collect(Collectors.toSet()))
-				.build();
+      if (existingRoles.contains(roleName)) {
+        skipped.add(roleName);
+        continue;
+      }
 
-		userEventProducer.publish(event);
+      Optional<Role> roleOpt = roleRepo.findByRoleNameIgnoreCase(roleName);
+      if (roleOpt.isEmpty()) {
+        throw new ResourceNotFoundException(UserErrorCode.ROLE_NOT_FOUND, "Role not found: " + roleName);
+      }
+      Role role = roleOpt.get();
 
-		return new RoleAssignmentResultDto(added, skipped, notFound);
-	}
+      UserRole userRole = UserRole.builder().userRoleId(UUID.randomUUID()).user(user).role(role).build();
 
-	@Override
-	public void removeRoleFromUser(UUID userId, String roleName) {
+      user.getUserRoles().add(userRole);
 
-		User user = userRepo.findByIdWithRoles(userId)
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
+      added.add(roleName);
+    }
 
-		boolean removed = user.getUserRoles()
-				.removeIf(ur -> ur.getRole() != null && ur.getRole().getRoleName().equalsIgnoreCase(roleName));
+    userRepo.save(user);
 
-		if (!removed) {
-			throw new ResourceNotFoundException(UserErrorCode.ROLE_NOT_FOUND, roleName);
-		}
+    // =====================================
+    // PUBLISH USER ROLE UPDATED EVENT
+    // =====================================
 
-		userRepo.save(user);
-	}
+    User reloaded = userRepo.findByIdWithRoles(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
 
-	private void updateEmailIfNeeded(User user, UpdateUserRequestDto request) {
+    UserEvent event = UserEvent.builder().id(UUID.randomUUID()).createdAt(LocalDateTime.now())
 
-		String email = request.getEmail();
+        .eventType("USER_ROLE_UPDATED")
 
-		if (email == null || email.isBlank()) {
-			return;
-		}
+        .userId(reloaded.getUserId()).username(reloaded.getUsername()).email(reloaded.getEmail())
+        .status(reloaded.getStatus())
 
-		String newEmail = email.trim().toLowerCase();
+        .roles(reloaded.getUserRoles().stream().map(userRole -> userRole.getRole().getRoleName())
+            .collect(Collectors.toSet()))
+        .build();
 
-		if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepo.existsByEmailIgnoreCase(newEmail)) {
+    userEventProducer.publish(event);
 
-			throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
-		}
+    return new RoleAssignmentResultDto(added, skipped, notFound);
+  }
 
-		user.setEmail(newEmail);
-	}
+  @Override
+  public void removeRoleFromUser(UUID userId, String roleName) {
 
-	private UserResponseDto updateUserFields(User user, UpdateUserRequestDto request) {
+    User user = userRepo.findByIdWithRoles(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, userId));
 
-		updateIfPresent(request.getFirstName(), user::setFirstName);
-		updateIfPresent(request.getLastName(), user::setLastName);
-		updateEmailIfNeeded(user, request);
-		updateIfPresent(request.getStatus(), user::setStatus);
-		updatePasswordIfPresent(user, request.getPassword());
-		userRepo.save(user);
-		return userMapper.toDto(user);
-	}
+    boolean removed = user.getUserRoles()
+        .removeIf(ur -> ur.getRole() != null && ur.getRole().getRoleName().equalsIgnoreCase(roleName));
 
-	private void updatePasswordIfPresent(User user, String password) {
+    if (!removed) {
+      throw new ResourceNotFoundException(UserErrorCode.ROLE_NOT_FOUND, roleName);
+    }
 
-		if (password != null && !password.isBlank()) {
-			user.setPasswordHash(passwordEncoder.encode(password));
-		}
-	}
+    userRepo.save(user);
+  }
 
-	private void updateIfPresent(String value, Consumer<String> setter) {
+  private void updateEmailIfNeeded(User user, UpdateUserRequestDto request) {
 
-		if (value != null && !value.isBlank()) {
-			setter.accept(value.trim());
-		}
-	}
+    String email = request.getEmail();
 
-	@Override
-	@Transactional
-	public BulkUserCreateResponseDto createBulkUsers(BulkCreateUserRequestDto request) {
+    if (email == null || email.isBlank()) {
+      return;
+    }
 
-		List<UserResponseDto> createdUsers = new ArrayList<>();
+    String newEmail = email.trim().toLowerCase();
 
-		List<String> skippedUsers = new ArrayList<>();
+    if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepo.existsByEmailIgnoreCase(newEmail)) {
 
-		for (CreateUserRequestDto dto : request.getUsers()) {
+      throw new UserAlreadyExistsException(UserErrorCode.USER_ALREADY_EXISTS);
+    }
 
-			try {
+    user.setEmail(newEmail);
+  }
 
-				boolean usernameExists = userRepo.existsByUsernameIgnoreCase(dto.getUsername());
-				boolean emailExists = userRepo.existsByEmailIgnoreCase(dto.getEmail());
-				if (usernameExists || emailExists) {
-					skippedUsers.add(dto.getUsername());
-					continue;
-				}
+  private UserResponseDto updateUserFields(User user, UpdateUserRequestDto request) {
 
-				User user = new User();
-				user.setUsername(dto.getUsername());
-				user.setEmail(dto.getEmail());
-				user.setFirstName(dto.getFirstName());
-				user.setLastName(dto.getLastName());
-				user.setStatus("ACTIVE");
-				user.setIsDeleted(false);
-				user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-				User savedUser = userRepo.save(user);
-				// ROLE ASSIGNMENT
-				if (dto.getRoles() != null) {
-					assignRolesToUser(savedUser.getUserId(), new ArrayList<>(dto.getRoles()));
-				}
+    updateIfPresent(request.getFirstName(), user::setFirstName);
+    updateIfPresent(request.getLastName(), user::setLastName);
+    updateEmailIfNeeded(user, request);
+    updateIfPresent(request.getStatus(), user::setStatus);
+    updatePasswordIfPresent(user, request.getPassword());
+    userRepo.save(user);
+    return userMapper.toDto(user);
+  }
 
-				// =========================
-				// PUBLISH EVENT
-				// =========================
+  private void updatePasswordIfPresent(User user, String password) {
 
-				UserEvent event = UserEvent.builder().eventType("USER_CREATED").userId(savedUser.getUserId())
-						.username(savedUser.getUsername()).email(savedUser.getEmail())
-						.firstName(savedUser.getFirstName()).lastName(savedUser.getLastName())
-						.status(savedUser.getStatus()).build();
+    if (password != null && !password.isBlank()) {
+      user.setPasswordHash(passwordEncoder.encode(password));
+    }
+  }
 
-				userEventProducer.publish(event);
+  private void updateIfPresent(String value, Consumer<String> setter) {
 
-				createdUsers.add(userMapper.toDto(savedUser));
-			} catch (Exception ex) {
+    if (value != null && !value.isBlank()) {
+      setter.accept(value.trim());
+    }
+  }
 
-				ex.printStackTrace();
-				skippedUsers.add(dto.getUsername());
-			}
-		}
+  @Override
+  @Transactional
+  public BulkUserCreateResponseDto createBulkUsers(BulkCreateUserRequestDto request) {
 
-		return BulkUserCreateResponseDto.builder().message(createdUsers.size() + " users created successfully")
-				.totalRequested(request.getUsers().size()).createdCount(createdUsers.size())
-				.skippedCount(skippedUsers.size()).createdUsers(createdUsers).skippedUsers(skippedUsers).build();
-	}
+    List<UserResponseDto> createdUsers = new ArrayList<>();
+
+    List<String> skippedUsers = new ArrayList<>();
+
+    for (CreateUserRequestDto dto : request.getUsers()) {
+
+      try {
+
+        boolean usernameExists = userRepo.existsByUsernameIgnoreCase(dto.getUsername());
+        boolean emailExists = userRepo.existsByEmailIgnoreCase(dto.getEmail());
+        if (usernameExists || emailExists) {
+          skippedUsers.add(dto.getUsername());
+          continue;
+        }
+
+        User user = new User();
+        user.setUsername(dto.getUsername());
+        user.setEmail(dto.getEmail());
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+        user.setStatus("ACTIVE");
+        user.setIsDeleted(false);
+        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        User savedUser = userRepo.save(user);
+        // ROLE ASSIGNMENT
+        if (dto.getRoles() != null) {
+          assignRolesToUser(savedUser.getUserId(), new ArrayList<>(dto.getRoles()));
+        }
+
+        // =========================
+        // PUBLISH EVENT
+        // =========================
+
+        User reloaded =
+
+            userRepo.findByIdWithRoles(savedUser.getUserId())
+
+                .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND,
+                    savedUser.getUserId()));
+
+        UserEvent event =
+
+            UserEvent.builder()
+
+                .id(UUID.randomUUID())
+
+                .createdAt(LocalDateTime.now())
+
+                .eventType("USER_CREATED")
+
+                .userId(reloaded.getUserId())
+
+                .username(reloaded.getUsername())
+
+                .email(reloaded.getEmail())
+
+                .firstName(reloaded.getFirstName())
+
+                .lastName(reloaded.getLastName())
+
+                .status(reloaded.getStatus())
+
+                .roles(
+
+                    reloaded.getUserRoles().stream()
+
+                        .map(
+
+                            r ->
+
+                            r.getRole().getRoleName()
+
+                        )
+
+                        .collect(Collectors.toSet())
+
+                )
+
+                .build();
+
+        userEventProducer.publish(event);
+
+        createdUsers.add(userMapper.toDto(savedUser));
+      } catch (Exception ex) {
+
+        ex.printStackTrace();
+        skippedUsers.add(dto.getUsername());
+      }
+    }
+
+    return BulkUserCreateResponseDto.builder().message(createdUsers.size() + " users created successfully")
+        .totalRequested(request.getUsers().size()).createdCount(createdUsers.size())
+        .skippedCount(skippedUsers.size()).createdUsers(createdUsers).skippedUsers(skippedUsers).build();
+  }
 }

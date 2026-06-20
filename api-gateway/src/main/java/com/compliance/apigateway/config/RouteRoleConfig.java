@@ -40,58 +40,58 @@ import com.compliance.apigateway.util.Role;
 @Component
 public class RouteRoleConfig {
 
-	private static final String ADMIN = "ROLE_" + Role.ADMIN.name();
+  private static final String ADMIN = "ROLE_" + Role.ADMIN.name();
 
-	private static final String COMPANY = "ROLE_" + Role.COMPANY_REPRESENTATIVE.name();
+  private static final String COMPANY = "ROLE_" + Role.COMPANY_REPRESENTATIVE.name();
 
-	private static final String INVESTOR = "ROLE_" + Role.INVESTOR.name();
+  private static final String INVESTOR = "ROLE_" + Role.INVESTOR.name();
 
-	/**
-	 * Route prefix → list of roles that may access it. Evaluated in insertion order
-	 * — first match wins.
-	 *
-	 * <p>
-	 * Using {@code Map.of} preserves declaration order in Java 21 (LinkedHashMap
-	 * internally). For > 10 entries use a LinkedHashMap explicitly.
-	 */
-	private final Map<String, List<String>> roleMappings = Map.ofEntries(
-			// User management — admin only
-			Map.entry("/auth/users", List.of(ADMIN)),
+  /**
+   * Route prefix → list of roles that may access it. Evaluated in insertion order
+   * — first match wins.
+   *
+   * <p>
+   * Using {@code Map.of} preserves declaration order in Java 21 (LinkedHashMap
+   * internally). For > 10 entries use a LinkedHashMap explicitly.
+   */
+  private final Map<String, List<String>> roleMappings = Map.ofEntries(
+      // User management — admin only
+      Map.entry("/auth/users", List.of(ADMIN)),
 
-			// Entity management — admin or company rep
-			Map.entry("/entity", List.of(ADMIN, COMPANY)),
+      // Entity management — admin or company rep
+      Map.entry("/entity", List.of(ADMIN, COMPANY)),
 
-			// Compliance tracker — admin or company rep
-			Map.entry("/compliance", List.of(ADMIN, COMPANY)),
+      // Compliance tracker — admin or company rep
+      Map.entry("/compliance", List.of(ADMIN, COMPANY)),
 
-			// Reports — admin or investor
-			Map.entry("/report", List.of(ADMIN, INVESTOR)),
+      // Reports — admin or investor
+      Map.entry("/report", List.of(ADMIN, INVESTOR)),
 
-			// Audit trail — admin only
-			Map.entry("/audit", List.of(ADMIN)),
+      // Audit trail — admin only
+      Map.entry("/audit", List.of(ADMIN)),
 
-			// Archive — admin only
-			Map.entry("/archive", List.of(ADMIN)),
+      // Archive — admin only
+      Map.entry("/archive", List.of(ADMIN)),
 
-			// Investor portal — admin or investor
-			Map.entry("/investor", List.of(ADMIN, INVESTOR)),
+      // Investor portal — admin or investor
+      Map.entry("/investor", List.of(ADMIN, INVESTOR)),
 
-			// Workflow initiation — admin or company rep
-			Map.entry("/initiator", List.of(ADMIN, COMPANY)),
+      // Workflow initiation — admin or company rep
+      Map.entry("/initiator", List.of(ADMIN, COMPANY)),
 
-			// Notifications — all authenticated roles
-			Map.entry("/notification", List.of(ADMIN, COMPANY, INVESTOR)));
+      // Notifications — all authenticated roles
+      Map.entry("/notification", List.of(ADMIN, COMPANY, INVESTOR)));
 
-	/**
-	 * Returns the list of roles permitted for the given request path. Returns an
-	 * empty list if the path is not in the map, meaning any authenticated user is
-	 * allowed.
-	 *
-	 * @param path the request URI path (e.g. "/entity/api/entities")
-	 * @return list of permitted role names, or empty list for "any authenticated"
-	 */
-	public List<String> getAllowedRoles(String path) {
-		return roleMappings.entrySet().stream().filter(entry -> path.startsWith(entry.getKey()))
-				.map(Map.Entry::getValue).findFirst().orElse(List.of());
-	}
+  /**
+   * Returns the list of roles permitted for the given request path. Returns an
+   * empty list if the path is not in the map, meaning any authenticated user is
+   * allowed.
+   *
+   * @param path the request URI path (e.g. "/entity/api/entities")
+   * @return list of permitted role names, or empty list for "any authenticated"
+   */
+  public List<String> getAllowedRoles(String path) {
+    return roleMappings.entrySet().stream().filter(entry -> path.startsWith(entry.getKey()))
+        .map(Map.Entry::getValue).findFirst().orElse(List.of());
+  }
 }

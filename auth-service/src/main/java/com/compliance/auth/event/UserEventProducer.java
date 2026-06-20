@@ -1,303 +1,262 @@
 package com.compliance.auth.event;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.utils.CollectionUtils;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.compliance.common.enums.KafkaErrorCode;
-
+import com.compliance.common.enums.UserErrorCode;
+import com.compliance.common.exception.BaseException;
 import com.compliance.common.kafka.config.BaseKafkaProducerConfig;
-
+import com.compliance.common.kafka.constants.KafkaTopics;
 import com.compliance.common.kafka.event.FailedEvent;
 import com.compliance.common.kafka.event.UserEvent;
-
+import com.compliance.common.kafka.event.UserEventType;
 import com.compliance.common.kafka.repository.FailedEventRepository;
-
+import com.compliance.common.util.CorrelationIdUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-public class UserEventProducer
-        extends BaseKafkaProducerConfig<
-                UserEvent
-                > {
+public class UserEventProducer extends BaseKafkaProducerConfig<UserEvent> {
 
-    // =====================================================
-    // REPOSITORIES
-    // =====================================================
+	private final FailedEventRepository failedEventRepository;
+	private final ObjectMapper objectMapper;
 
-    private final FailedEventRepository
-            failedEventRepository;
+	public UserEventProducer(KafkaTemplate<String, UserEvent> kafkaTemplate,
+			FailedEventRepository failedEventRepository, ObjectMapper objectMapper
 
-    private final ObjectMapper
-            objectMapper;
+	) {
 
-    // =====================================================
-    // CONSTRUCTOR
-    // =====================================================
+		super(kafkaTemplate);
+		this.failedEventRepository = failedEventRepository;
+		this.objectMapper = objectMapper;
+	}
 
-    public UserEventProducer(
+	@Override
+	protected String getTopicName() {
 
-            KafkaTemplate<
-                    String,
-                    UserEvent
-                    > kafkaTemplate,
+		return KafkaTopics.USER_EVENTS;
 
-            FailedEventRepository
-                    failedEventRepository,
+	}
 
-            ObjectMapper
-                    objectMapper
-    ) {
+	public CompletableFuture<Void> publishUserCreatedEvent(
 
-        super(kafkaTemplate);
+			UUID eventId,
 
-        this.failedEventRepository =
-                failedEventRepository;
+			UserEvent event
 
-        this.objectMapper =
-                objectMapper;
-    }
+	) {
 
-    // =====================================================
-    // TOPIC NAME
-    // =====================================================
+		validate(event);
 
-    @Override
-    protected String getTopicName() {
+		initialize(
 
-        return "user-events";
-    }
+				eventId,
 
-    // =====================================================
-    // USER CREATED EVENT
-    // =====================================================
+				event
 
-    public void publishUserCreatedEvent(
+		);
 
-            UUID eventId,
+		return super.publish(
 
-            UserEvent event
-    ) {
+				event.getId().toString(),
 
-        // =====================================================
-        // VALIDATE EVENT
-        // =====================================================
+				event
 
-        if (event == null) {
+		);
 
-            throw new IllegalArgumentException(
-                    "UserEvent cannot be null"
-            );
-        }
+	}
 
-        // =====================================================
-        // SET EVENT ID IF NULL
-        // =====================================================
+	public CompletableFuture<Void> publish(UserEvent event) {
 
-        if (event.getEventId() == null) {
+		validate(event);
 
-            event.setEventId(
+		initialize(UUID.randomUUID(), event);
 
-                    eventId != null
-                            ? eventId
-                            : UUID.randomUUID()
-            );
-        }
+		return super.publish(event.getId().toString(), event);
 
-        // =====================================================
-        // SET TIMESTAMP IF NULL
-        // =====================================================
+	}
 
-        if (event.getTimestamp() == null) {
+	private void validate(UserEvent event) {
 
-            event.setTimestamp(
-                    LocalDateTime.now()
-            );
-        }
+		if (event == null) {
 
-        // =====================================================
-        // SET DEFAULT EVENT TYPE
-        // =====================================================
+			throw new IllegalArgumentException("UserEvent cannot be null");
 
-        if (event.getEventType() == null) {
+		}
 
-            event.setEventType(
-                    "USER_CREATED"
-            );
-        }
+		if (event.getEventType() == UserEventType.CREATE_USER || event.getEventType() == UserEventType.UPDATE_USER) {
 
-        // =====================================================
-        // PUBLISH EVENT
-        // =====================================================
+			if (event.getRoles() == null || event.getRoles().isEmpty()) {
 
-        publish(event);
-    }
+				throw new BaseException(UserErrorCode.USER_MUST_HAVE_ROLE);
 
-    // =====================================================
-    // GENERIC PUBLISH
-    // =====================================================
+			}
 
-    public void publish(
-            UserEvent event
-            
-    ) 
-    
-    
-    {
+		}
 
-        super.publish(
+	}
 
-                event.getEventId().toString(),
+	private void initialize(
 
-                event
-        );
-    }
+			UUID eventId,
 
-    // =====================================================
-    // SUCCESS CALLBACK
-    // =====================================================
+			UserEvent event
 
-    @Override
-    protected void onPublishSuccess(
+	) {
 
-            String key,
+		if (event.getId() == null) {
 
-            UserEvent event
-    ) {
+			event.setId(eventId);
 
-        log.info(
-                "User event published successfully eventType={} eventId={}",
-                event.getEventType(),
-                event.getEventId()
-        );
-    }
+		}
 
-    // =====================================================
-    // FAILURE CALLBACK
-    // =====================================================
+		if (event.getAggregateId() == null) {
 
-    @Override
-    protected void onPublishFailure(
+			event.setAggregateId(event.getUserId());
 
-            String key,
+		}
 
-            UserEvent event,
+		if (event.getTimestamp() == null) {
 
-            Throwable ex
-    ) {
+			event.setTimestamp(LocalDateTime.now());
 
-        log.error(
-                KafkaErrorCode
-                        .KAFKA_PUBLISH_FAILED
-                        .getMessage(),
-                ex
-        );
+		}
 
-        fallbackSave(
-                event,
-                ex
-        );
-    }
+		if (event.getCreatedAt() == null) {
 
-    // =====================================================
-    // FALLBACK SAVE
-    // =====================================================
+			event.setCreatedAt(LocalDateTime.now());
 
-    private void fallbackSave(
+		}
 
-            UserEvent event,
+		if (event.getEventType() == null) {
 
-            Throwable ex
-    ) {
+			event.setEventType("USER_CREATED");
 
-        try {
+		}
 
-            FailedEvent failedEvent =
-                    FailedEvent.builder()
+		if (event.getCorrelationId() == null) {
 
-                            // =========================
-                            // BASE EVENT
-                            // =========================
+			event.setCorrelationId(
 
-                            .eventId(
-                                    event.getEventId()
-                            )
+					CorrelationIdUtil.generate()
 
-                            .eventType(
-                                    event.getEventType()
-                            )
+			);
 
-                            .serviceName(
-                                    "auth-service"
-                            )
+		}
 
-                            .timestamp(
-                                    LocalDateTime.now()
-                            )
+		event.setServiceName("auth-service");
 
-                            .retryCount(
-                                    0
-                            )
+		event.setStatus("NEW");
 
-                            .status(
-                                    "FAILED"
-                            )
+	}
 
-                            // =========================
-                            // FAILED EVENT
-                            // =========================
+	@Override
+	protected void onPublishSuccess(
 
-                            .topicName(
-                                    getTopicName()
-                            )
+			String key,
 
-                            .payload(
-                                    objectMapper
-                                            .writeValueAsString(
-                                                    event
-                                            )
-                            )
+			UserEvent event
 
-                            .errorMessage(
-                                    ex.getMessage()
-                            )
+	) {
 
-                            .stackTrace(
-                                    ex.toString()
-                            )
+		log.info(
 
-                            .createdAt(
-                                    LocalDateTime.now()
-                            )
+				"Published user event type={} id={}",
 
-                            .updatedAt(
-                                    LocalDateTime.now()
-                            )
+				event.getEventType(),
 
-                            .build();
+				event.getId()
 
-            failedEventRepository.save(
-                    failedEvent
-            );
+		);
 
-            log.info(
-                    "Failed event persisted eventId={}",
-                    event.getEventId()
-            );
+	}
 
-        } catch (Exception e) {
+	@Override
+	protected void onPublishFailure(
 
-            log.error(
-                    KafkaErrorCode
-                            .KAFKA_FALLBACK_SAVE_FAILED
-                            .getMessage(),
-                    e
-            );
-        }
-    }
+			String key,
+
+			UserEvent event,
+
+			Throwable ex
+
+	) {
+
+		log.error(
+
+				KafkaErrorCode.KAFKA_PUBLISH_FAILED.getMessage(),
+
+				ex
+
+		);
+
+		saveFailedEvent(event, ex);
+
+	}
+
+	private void saveFailedEvent(
+
+			UserEvent event,
+
+			Throwable ex
+
+	) {
+
+		try {
+
+			StringWriter sw = new StringWriter();
+
+			ex.printStackTrace(
+
+					new PrintWriter(sw)
+
+			);
+
+			FailedEvent failed =
+
+					FailedEvent.builder()
+
+							.id(event.getId())
+
+							.aggregateId(event.getAggregateId())
+							.eventType(event.getEventType())
+							.serviceName("auth-service")
+							.retryCount(0)
+							.status("FAILED")
+							.timestamp(LocalDateTime.now())
+							.topicName(getTopicName())
+							.payload(objectMapper.writeValueAsString(event))
+							.errorMessage(ex.getMessage())
+							.stackTrace(sw.toString())
+							.createdAt(LocalDateTime.now())
+							.updatedAt(LocalDateTime.now())
+							.build();
+							failedEventRepository.save(failed);
+
+		}
+
+		catch (Exception e) {
+
+			log.error(
+
+					KafkaErrorCode.KAFKA_FALLBACK_SAVE_FAILED.getMessage(),
+
+					e
+
+			);
+
+		}
+
+	}
+
 }

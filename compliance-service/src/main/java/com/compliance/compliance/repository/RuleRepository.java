@@ -14,8 +14,8 @@ import com.compliance.compliance.entity.ComplianceRule;
 
 public interface RuleRepository extends BaseRepository<ComplianceRule, UUID> {
 
-	List<ComplianceRule> findByActiveTrue();
-	List<ComplianceRule> findByEntityType(String entityType);
-	List<ComplianceRule> findByCountryCode(String countryCode);
+  List<ComplianceRule> findByActiveTrue();
+  List<ComplianceRule> findByEntityType(String entityType);
+  List<ComplianceRule> findByCountryCode(String countryCode);
 
 }

@@ -9,7 +9,7 @@ import lombok.Data;
 @Data
 public class EntityBulkUserMappingRequest {
 
-	 @NotEmpty(message = "Users list cannot be empty")
-	    private List<@Valid EntityUserMappingRequest> users;
+   @NotEmpty(message = "Users list cannot be empty")
+      private List<@Valid EntityUserMappingRequest> users;
 
 }

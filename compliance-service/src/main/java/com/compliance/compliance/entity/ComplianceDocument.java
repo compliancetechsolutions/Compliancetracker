@@ -28,24 +28,24 @@ import lombok.Setter;
 
 public class ComplianceDocument
 
-		extends BaseEntity {
+    extends BaseEntity {
 
-	@Id
+  @Id
 
-	@Column(name = "document_id")
+  @Column(name = "document_id")
 
-	private UUID documentId;
+  private UUID documentId;
 
-	@Column(name = "compliance_id")
+  @Column(name = "compliance_id")
 
-	private UUID complianceId;
+  private UUID complianceId;
 
-	@Column(name = "document_name")
+  @Column(name = "document_name")
 
-	private String documentName;
+  private String documentName;
 
-	@Column(name = "file_path")
+  @Column(name = "file_path")
 
-	private String filePath;
+  private String filePath;
 
 }

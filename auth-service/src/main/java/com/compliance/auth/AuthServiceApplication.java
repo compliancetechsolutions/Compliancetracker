@@ -13,23 +13,23 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @EntityScan(basePackages = {
 
-		"com.compliance.auth",
+    "com.compliance.auth",
 
-		"com.compliance.common.kafka.event" })
+    "com.compliance.common.kafka.event" })
 
 @EnableJpaRepositories(basePackages = {
 
-		"com.compliance.auth.repository",
+    "com.compliance.auth.repository",
 
-		"com.compliance.common.kafka.repository" })
+    "com.compliance.common.kafka.repository" })
 
 public class AuthServiceApplication {
 
-	public static void main(String[] args) {
+  public static void main(String[] args) {
 
-		// System.out.println( new BCryptPasswordEncoder() .encode("admin123") );
+    // System.out.println( new BCryptPasswordEncoder() .encode("admin123") );
 
-		SpringApplication.run(AuthServiceApplication.class, args);
-	}
+    SpringApplication.run(AuthServiceApplication.class, args);
+  }
 
 }

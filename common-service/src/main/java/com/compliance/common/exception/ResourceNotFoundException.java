@@ -9,11 +9,11 @@ import com.compliance.common.enums.BaseErrorCode;
 public class ResourceNotFoundException extends BaseException {
 
     /**
-	 * 
-	 */
-	private static final long serialVersionUID = 127595026576423431L;
+   * 
+   */
+  private static final long serialVersionUID = 127595026576423431L;
 
-	public ResourceNotFoundException(BaseErrorCode errorCode, Object id) {
+  public ResourceNotFoundException(BaseErrorCode errorCode, Object id) {
         super(errorCode, errorCode.getMessage() + " [id=" + id + "]");
     }
 

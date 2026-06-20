@@ -40,143 +40,143 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EntityController extends BaseController {
 
-	private final EntityService entityService;
+  private final EntityService entityService;
 
-	// =====================================================
-	// CREATE
-	// =====================================================
+  // =====================================================
+  // CREATE
+  // =====================================================
 
-	@Operation(summary = "Create entity")
-	@PostMapping
-	public ResponseEntity<ApiResponse<EntityResponse>> create(@Valid @RequestBody EntityRequest request) {
+  @Operation(summary = "Create entity")
+  @PostMapping
+  public ResponseEntity<ApiResponse<EntityResponse>> create(@Valid @RequestBody EntityRequest request) {
 
-		EntityResponse created = entityService.create(request);
+    EntityResponse created = entityService.create(request);
 
-		return created("Entity created successfully", created);
-	}
-	
-	
-	@PostMapping("/bulk")
-	public ResponseEntity<Void> createEntities(
-	        @RequestBody BulkEntityRequest request) {
+    return created("Entity created successfully", created);
+  }
+  
+  
+  @PostMapping("/bulk")
+  public ResponseEntity<Void> createEntities(
+          @RequestBody BulkEntityRequest request) {
 
-	    entityService.createEntities(request);
+      entityService.createEntities(request);
 
-	    return ResponseEntity.ok().build();
-	}
-	
+      return ResponseEntity.ok().build();
+  }
+  
 
-	// =====================================================
-	// GET BY ID
-	// =====================================================
+  // =====================================================
+  // GET BY ID
+  // =====================================================
 
-	@Operation(summary = "Get entity by ID")
-	@GetMapping("/id/{id}")
-	public ResponseEntity<ApiResponse<EntityResponse>> get(
-			@Parameter(description = "Entity UUID") @PathVariable UUID id) {
+  @Operation(summary = "Get entity by ID")
+  @GetMapping("/id/{id}")
+  public ResponseEntity<ApiResponse<EntityResponse>> get(
+      @Parameter(description = "Entity UUID") @PathVariable UUID id) {
 
-		EntityResponse response = entityService.getById(id)
+    EntityResponse response = entityService.getById(id)
 
-				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, id));
+        .orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, id));
 
-		return ok(response);
-	}
+    return ok(response);
+  }
 
-	// =====================================================
-	// GET ALL
-	// =====================================================
+  // =====================================================
+  // GET ALL
+  // =====================================================
 
-	@Operation(summary = "List all entities")
-	@GetMapping
-	public ResponseEntity<ApiResponse<Page<EntityResponse>>> getAll(
-			@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+  @Operation(summary = "List all entities")
+  @GetMapping
+  public ResponseEntity<ApiResponse<Page<EntityResponse>>> getAll(
+      @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
 
-		return ok(entityService.getAll(pageable));
-	}
+    return ok(entityService.getAll(pageable));
+  }
 
-	// =====================================================
-	// CURRENT USER ENTITIES
-	// =====================================================
+  // =====================================================
+  // CURRENT USER ENTITIES
+  // =====================================================
 
-	@Operation(summary = "Entities mapped to current user")
-	@GetMapping("/my")
-	public ResponseEntity<ApiResponse<List<EntityResponse>>> getMyEntities() {
+  @Operation(summary = "Entities mapped to current user")
+  @GetMapping("/my")
+  public ResponseEntity<ApiResponse<List<EntityResponse>>> getMyEntities() {
 
-		return ok(entityService.getMyEntities());
-	}
+    return ok(entityService.getMyEntities());
+  }
 
-	// =====================================================
-	// MAP USER TO ENTITY
-	// =====================================================
+  // =====================================================
+  // MAP USER TO ENTITY
+  // =====================================================
 
-	@Operation(summary = "Map user to existing entity")
-	@PostMapping("/{entityId}/users")
-	public ResponseEntity<ApiResponse<Void>> mapUser(@PathVariable UUID entityId,
-			@Valid @RequestBody EntityUserMappingRequest request) {
+  @Operation(summary = "Map user to existing entity")
+  @PostMapping("/{entityId}/users")
+  public ResponseEntity<ApiResponse<Void>> mapUser(@PathVariable UUID entityId,
+      @Valid @RequestBody EntityUserMappingRequest request) {
 
-		entityService.mapUser(entityId, request);
+    entityService.mapUser(entityId, request);
 
-		return ok("User mapped successfully");
-	}
-	// =====================================================
-	// MAP Bulk USERS TO ENTITY
-	// =====================================================
+    return ok("User mapped successfully");
+  }
+  // =====================================================
+  // MAP Bulk USERS TO ENTITY
+  // =====================================================
 
-	@PostMapping("/{entityId}/users/bulk")
-	public ResponseEntity<Void> mapUsers(@PathVariable UUID entityId,
-			@Valid @RequestBody EntityBulkUserMappingRequest request) {
+  @PostMapping("/{entityId}/users/bulk")
+  public ResponseEntity<Void> mapUsers(@PathVariable UUID entityId,
+      @Valid @RequestBody EntityBulkUserMappingRequest request) {
 
-		entityService.mapUsers(entityId, request);
+    entityService.mapUsers(entityId, request);
 
-		return ResponseEntity.ok().build();
-	}
+    return ResponseEntity.ok().build();
+  }
 
-	// =====================================================
-	// INVESTOR VIEW
-	// =====================================================
+  // =====================================================
+  // INVESTOR VIEW
+  // =====================================================
 
-	@Operation(summary = "Investor entities")
-	@GetMapping("/investor")
-	public ResponseEntity<ApiResponse<Page<EntityResponse>>> getInvestorEntities(
-			@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+  @Operation(summary = "Investor entities")
+  @GetMapping("/investor")
+  public ResponseEntity<ApiResponse<Page<EntityResponse>>> getInvestorEntities(
+      @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
 
-		return ok(entityService.getInvestorEntities(pageable));
-	}
+    return ok(entityService.getInvestorEntities(pageable));
+  }
 
-	// =====================================================
-	// REPRESENTATIVE VIEW
-	// =====================================================
+  // =====================================================
+  // REPRESENTATIVE VIEW
+  // =====================================================
 
-	@Operation(summary = "Representative entities")
-	@GetMapping("/representative")
-	public ResponseEntity<ApiResponse<Page<EntityResponse>>> getRepresentativeEntities(
-			@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+  @Operation(summary = "Representative entities")
+  @GetMapping("/representative")
+  public ResponseEntity<ApiResponse<Page<EntityResponse>>> getRepresentativeEntities(
+      @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
 
-		return ok(entityService.getRepresentativeEntities(pageable));
-	}
+    return ok(entityService.getRepresentativeEntities(pageable));
+  }
 
-	// =====================================================
-	// UPDATE
-	// =====================================================
+  // =====================================================
+  // UPDATE
+  // =====================================================
 
-	@Operation(summary = "Update entity")
-	@PutMapping("/{id}")
-	public ResponseEntity<ApiResponse<EntityResponse>> update(@PathVariable UUID id,
-			@Valid @RequestBody EntityRequest request) {
+  @Operation(summary = "Update entity")
+  @PutMapping("/{id}")
+  public ResponseEntity<ApiResponse<EntityResponse>> update(@PathVariable UUID id,
+      @Valid @RequestBody EntityRequest request) {
 
-		return ok("Entity updated successfully", entityService.update(id, request));
-	}
+    return ok("Entity updated successfully", entityService.update(id, request));
+  }
 
-	// =====================================================
-	// DELETE
-	// =====================================================
+  // =====================================================
+  // DELETE
+  // =====================================================
 
-	@Operation(summary = "Delete entity")
-	@DeleteMapping("/{id}")
-	public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+  @Operation(summary = "Delete entity")
+  @DeleteMapping("/{id}")
+  public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
 
-		entityService.delete(id);
+    entityService.delete(id);
 
-		return ok("Entity deleted successfully");
-	}
+    return ok("Entity deleted successfully");
+  }
 }

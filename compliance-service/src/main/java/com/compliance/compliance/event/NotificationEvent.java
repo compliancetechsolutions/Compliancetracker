@@ -1,5 +1,6 @@
 package com.compliance.compliance.event;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -39,78 +40,83 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = true)
 public class NotificationEvent extends BaseEvent {
 
-	// =====================================================
-	// TARGET
-	// =====================================================
+  // =====================================================
+  // TARGET
+  // =====================================================
 
-	/** Entity to be notified — used as Kafka partition key. */
-	private UUID entityId;
+  /**
+   * 
+   */
+  private static final long serialVersionUID = -2953530722263050732L;
 
-	/**
-	 * Optional specific user within the entity. Null → broadcast to all entity
-	 * admins.
-	 */
-	private UUID userId;
+  /** Entity to be notified — used as Kafka partition key. */
+  private UUID entityId;
 
-	// =====================================================
-	// COMPLIANCE CONTEXT
-	// =====================================================
+  /**
+   * Optional specific user within the entity. Null → broadcast to all entity
+   * admins.
+   */
+  private UUID userId;
 
-	private UUID complianceId;
+  // =====================================================
+  // COMPLIANCE CONTEXT
+  // =====================================================
 
-	private UUID activityId;
+  private UUID complianceId;
 
-	private UUID ruleId;
+  private UUID activityId;
 
-	// =====================================================
-	// NOTIFICATION CONTENT
-	// =====================================================
+  private UUID ruleId;
 
-	/**
-	 * SHORT_CODE values: COMPLIANCE_DUE, COMPLIANCE_OVERDUE, COMPLIANCE_COMPLETED,
-	 * COMPLIANCE_CREATED, REMINDER, RULE_VIOLATION, WORKFLOW_UPDATE
-	 */
-	private String notificationType;
+  // =====================================================
+  // NOTIFICATION CONTENT
+  // =====================================================
 
-	private String title;
+  /**
+   * SHORT_CODE values: COMPLIANCE_DUE, COMPLIANCE_OVERDUE, COMPLIANCE_COMPLETED,
+   * COMPLIANCE_CREATED, REMINDER, RULE_VIOLATION, WORKFLOW_UPDATE
+   */
+  private String notificationType;
 
-	private String message;
+  private String title;
 
-	/** LOW / MEDIUM / HIGH / CRITICAL */
-	private String priority;
+  private String message;
 
-	// =====================================================
-	// DELIVERY CHANNELS
-	// =====================================================
+  /** LOW / MEDIUM / HIGH / CRITICAL */
+  private String priority;
 
-	/** When true, downstream service must send email. */
-	private Boolean sendEmail;
+  // =====================================================
+  // DELIVERY CHANNELS
+  // =====================================================
 
-	/** When true, downstream service must send push notification. */
-	private Boolean sendPush;
+  /** When true, downstream service must send email. */
+  private Boolean sendEmail;
 
-	/** When true, downstream service must send SMS. */
-	private Boolean sendSms;
+  /** When true, downstream service must send push notification. */
+  private Boolean sendPush;
 
-	// =====================================================
-	// RETRY / TRACKING
-	// =====================================================
+  /** When true, downstream service must send SMS. */
+  private Boolean sendSms;
 
-	private Integer retryCount;
+  // =====================================================
+  // RETRY / TRACKING
+  // =====================================================
 
-	private LocalDateTime scheduledAt;
+  private Integer retryCount;
 
-	// =====================================================
-	// COMPLIANCE DETAILS (for enrichment)
-	// =====================================================
+  private LocalDateTime scheduledAt;
 
-	private String complianceType;
+  // =====================================================
+  // COMPLIANCE DETAILS (for enrichment)
+  // =====================================================
 
-	private String complianceStatus;
+  private String complianceType;
 
-	private Boolean compliant;
+  private String complianceStatus;
 
-	private Boolean overdue;
+  private Boolean compliant;
 
-	private String dueDate;
+  private Boolean overdue;
+
+  private LocalDate dueDate;
 }

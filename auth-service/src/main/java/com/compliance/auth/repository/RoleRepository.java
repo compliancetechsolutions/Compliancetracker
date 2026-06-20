@@ -11,6 +11,6 @@ import com.compliance.auth.entity.Role;
 public interface RoleRepository extends JpaRepository<Role, UUID> {
 
 
-	List<Role> findByRoleNameIn(List<String> roleNames);
-	 Optional<Role> findByRoleNameIgnoreCase(String roleName);
+  List<Role> findByRoleNameIn(List<String> roleNames);
+   Optional<Role> findByRoleNameIgnoreCase(String roleName);
 }

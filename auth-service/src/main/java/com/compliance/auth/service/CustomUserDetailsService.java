@@ -8,7 +8,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-
 import org.springframework.stereotype.Service;
 
 import com.compliance.auth.entity.Role;
@@ -18,55 +17,42 @@ import com.compliance.auth.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepo;
+	private final UserRepository userRepo;
 
-    @Override
-    @Transactional
-    public UserDetails loadUserByUsername(String username)
-            throws UsernameNotFoundException {
+	@Override
+	@Transactional
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
-        User user = userRepo.findByUsernameWithRoles(username)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found: " + username));
+		User user = userRepo.findByUsernameWithRoles(username)
+				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        System.out.println("USER FOUND = " + user.getUsername());
-        System.out.println("DB HASH = " + user.getPasswordHash());
+		System.out.println("USER FOUND = " + user.getUsername());
+		System.out.println("DB HASH = " + user.getPasswordHash());
 
-        Set<GrantedAuthority> authorities = new HashSet<>();
+		log.debug("Loaded user details for username={}", user.getUsername());
 
-        for (UserRole ur : user.getUserRoles()) {
+		Set<GrantedAuthority> authorities = new HashSet<>();
 
-            Role role = ur.getRole();
+		for (UserRole ur : user.getUserRoles()) {
 
-            authorities.add(
-                    new SimpleGrantedAuthority(
-                            "ROLE_" + role.getRoleName()
-                    )
-            );
+			Role role = ur.getRole();
 
-            role.getRolePermissions().forEach(rp ->
-                    authorities.add(
-                            new SimpleGrantedAuthority(
-                                    rp.getPermission().getPermissionName()
-                            )
-                    )
-            );
-           
-        }
+			authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getRoleName()));
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUsername())
-                .password(user.getPasswordHash())
-                .authorities(authorities)
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
-    }
+			role.getRolePermissions()
+					.forEach(rp -> authorities.add(new SimpleGrantedAuthority(rp.getPermission().getPermissionName())));
+
+		}
+
+		return org.springframework.security.core.userdetails.User.builder().username(user.getUsername())
+				.password(user.getPasswordHash()).authorities(authorities).accountExpired(false).accountLocked(false)
+				.credentialsExpired(false).disabled(false).build();
+	}
 }

@@ -14,86 +14,86 @@ import com.compliance.compliance.entity.ComplianceRecord;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ComplianceMapper {
 
-	// ===============================
-	// REQUEST → ENTITY
-	// ===============================
+  // ===============================
+  // REQUEST → ENTITY
+  // ===============================
 
-	@Mapping(target = "complianceId", ignore = true)
+  @Mapping(target = "complianceId", ignore = true)
 
-	@Mapping(target = "actualCompletionDate", ignore = true)
+  @Mapping(target = "actualCompletionDate", ignore = true)
 
-	@Mapping(target = "notificationSent", ignore = true)
+  @Mapping(target = "notificationSent", ignore = true)
 
-	@Mapping(target = "notificationRetryCount", ignore = true)
+  @Mapping(target = "notificationRetryCount", ignore = true)
 
-	@Mapping(target = "compliant", ignore = true)
+  @Mapping(target = "compliant", ignore = true)
 
-	@Mapping(target = "overdue", ignore = true)
+  @Mapping(target = "overdue", ignore = true)
 
-	@Mapping(target = "triggeredRule", ignore = true)
+  @Mapping(target = "triggeredRule", ignore = true)
 
-	@Mapping(target = "ruleResult", ignore = true)
+  @Mapping(target = "ruleResult", ignore = true)
 
-	ComplianceRecord toEntity(ComplianceRequest request);
+  ComplianceRecord toEntity(ComplianceRequest request);
 
-	// ===============================
-	// ENTITY → RESPONSE
-	// ===============================
+  // ===============================
+  // ENTITY → RESPONSE
+  // ===============================
 
-	@Mapping(target = "completedDate",
+  @Mapping(target = "completedDate",
 
-			source = "actualCompletionDate")
+      source = "actualCompletionDate")
 
-	@Mapping(target = "executionId",
+  @Mapping(target = "executionId",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "message",
+  @Mapping(target = "message",
 
-			ignore = true)
+      ignore = true)
 
-	ComplianceResponse toResponse(ComplianceRecord entity);
+  ComplianceResponse toResponse(ComplianceRecord entity);
 
-	// ===============================
-	// UPDATE
-	// ===============================
+  // ===============================
+  // UPDATE
+  // ===============================
 
-	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 
-	@Mapping(target = "complianceId",
+  @Mapping(target = "complianceId",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "actualCompletionDate",
+  @Mapping(target = "actualCompletionDate",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "notificationSent",
+  @Mapping(target = "notificationSent",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "notificationRetryCount",
+  @Mapping(target = "notificationRetryCount",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "compliant",
+  @Mapping(target = "compliant",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "overdue",
+  @Mapping(target = "overdue",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "triggeredRule",
+  @Mapping(target = "triggeredRule",
 
-			ignore = true)
+      ignore = true)
 
-	@Mapping(target = "ruleResult",
+  @Mapping(target = "ruleResult",
 
-			ignore = true)
+      ignore = true)
 
-	void update(ComplianceRequest request,
+  void update(ComplianceRequest request,
 
-			@MappingTarget ComplianceRecord entity);
+      @MappingTarget ComplianceRecord entity);
 
 }

@@ -23,12 +23,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EntityType extends BaseEntity {
-	@Id
-	@Column(name = "entity_type_id")
-	private UUID entityTypeId;
+  @Id
+  @Column(name = "entity_type_id")
+  private UUID entityTypeId;
 
-	@Column(name = "type_name")
-	private String typeName;
+  @Column(name = "type_name")
+  private String typeName;
     @Column(name="description") 
-	private String description;
+  private String description;
 }

@@ -19,6 +19,9 @@ import com.compliance.common.enums.EntityStatus;
 import com.compliance.common.enums.Role;
 import com.compliance.common.exception.BaseException;
 import com.compliance.common.exception.ResourceNotFoundException;
+import com.compliance.common.kafka.event.InvestorEntityEvent;
+import com.compliance.common.kafka.event.RepresentativeEntityEvent;
+import com.compliance.common.kafka.event.UserEvent;
 import com.compliance.common.security.UserContext;
 import com.compliance.common.serviceimpl.BaseServiceImpl;
 import com.compliance.entity.dto.BulkEntityRequest;
@@ -29,6 +32,8 @@ import com.compliance.entity.dto.EntityResponse;
 import com.compliance.entity.dto.EntityUserMappingRequest;
 import com.compliance.entity.entity.EntityMaster;
 import com.compliance.entity.entity.EntityUserMapper;
+import com.compliance.entity.kafka.producer.InvestorEntityProducer;
+import com.compliance.entity.kafka.producer.RepresentativeEntityProducer;
 import com.compliance.entity.mapper.EntityMapper;
 import com.compliance.entity.repository.EntityRepository;
 import com.compliance.entity.repository.EntityUserMapperRepository;
@@ -40,381 +45,611 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Transactional
 public class EntityServiceImpl extends BaseServiceImpl<EntityRequest, EntityRequest, EntityResponse, EntityMaster, UUID>
-		implements EntityService {
+    implements EntityService {
 
-	private final EntityRepository entityRepo;
-	private final EntityUserMapperRepository mapperRepo;
-	private final EntityMapper mapper;
-	
+  private final EntityRepository entityRepo;
+  private final EntityUserMapperRepository mapperRepo;
+  private final EntityMapper mapper;
+  private final InvestorEntityProducer investorProducer;
 
-	
-	public EntityServiceImpl(EntityRepository entityRepo, EntityUserMapperRepository mapperRepo, EntityMapper mapper) {
+  private final RepresentativeEntityProducer representativeProducer;
 
-		super(entityRepo);
-		this.entityRepo = entityRepo;
-		this.mapperRepo = mapperRepo;
-		this.mapper = mapper;
-	}
-		
-	// =====================================================
-	// CREATE (ADMIN ONLY)
-	// =====================================================
+  public EntityServiceImpl(EntityRepository entityRepo, EntityUserMapperRepository mapperRepo, EntityMapper mapper,
+      InvestorEntityProducer investorproducer, RepresentativeEntityProducer entityProducer) {
 
-	@Override
-	@Transactional
-	public EntityResponse create(EntityRequest request) {
+    super(entityRepo);
+    this.entityRepo = entityRepo;
+    this.mapperRepo = mapperRepo;
+    this.mapper = mapper;
+    this.representativeProducer = entityProducer;
+    this.investorProducer = investorproducer;
+  }
 
-		requireRole(Role.ADMIN);
-		validateNoDuplicateName(request.getEntityName(), null);
-		EntityMaster entity = mapper.toEntity(request);
-		entity.setEntityId(UUID.randomUUID());
-		entity.setCompanyStartDate(request.getCompanyStartDate());
-		entity.setNoOfEmployees(request.getNoOfEmployees());
-		entity.setStatus(EntityStatus.ACTIVE);
-		entity.setVersion(0L);
-		entity.setIsDeleted(false);
-		EntityMaster saved = entityRepo.save(entity);
-		log.info("Entity created id={} by admin={}", saved.getEntityId(), UserContext.getUserId());
-		return mapper.toResponse(saved);
-	}
+  // =====================================================
+  // CREATE (ADMIN ONLY)
+  // =====================================================
 
-	@Override
-	@Transactional
-	public BulkEntityResponse createEntities(BulkEntityRequest request) {
+  @Override
+  @Transactional
+  public EntityResponse create(EntityRequest request) {
 
-		requireRole(Role.ADMIN);
+    requireRole(Role.ADMIN);
+    validateNoDuplicateName(request.getEntityName(), null);
+    EntityMaster entity = mapper.toEntity(request);
+    entity.setEntityId(UUID.randomUUID());
+    entity.setCompanyStartDate(request.getCompanyStartDate());
+    entity.setNoOfEmployees(request.getNoOfEmployees());
+    entity.setStatus(EntityStatus.ACTIVE);
+    entity.setVersion(0L);
+    entity.setIsDeleted(false);
+    EntityMaster saved = entityRepo.save(entity);
+    log.info("Entity created id={} by admin={}", saved.getEntityId(), UserContext.getUserId());
+    return mapper.toResponse(saved);
+  }
 
-		List<EntityResponse> created = new ArrayList<>();
+  @Override
+  @Transactional
+  public BulkEntityResponse createEntities(BulkEntityRequest request) {
 
-		List<String> skipped = new ArrayList<>();
+    requireRole(Role.ADMIN);
 
-		for (EntityRequest entityRequest : request.getEntities()) {
+    List<EntityResponse> created = new ArrayList<>();
 
-			boolean exists = entityRepo.existsByEntityNameIgnoreCaseAndIsDeletedFalse(entityRequest.getEntityName());
+    List<String> skipped = new ArrayList<>();
 
-			if (exists) {
+    // =================================================
+    // FIX (N+1): one query to find which requested names
+    // already exist, instead of existsBy... per row.
+    // =================================================
 
-				skipped.add(entityRequest.getEntityName());
+    List<String> requestedLowerNames = request.getEntities().stream()
+        .map(r -> r.getEntityName().toLowerCase())
+        .toList();
 
-				continue;
-			}
+    java.util.Set<String> existingLowerNames =
+        requestedLowerNames.isEmpty()
+            ? java.util.Set.of()
+            : entityRepo.findExistingLowerCaseNames(requestedLowerNames);
 
-			EntityMaster entity = EntityMaster.builder()
+    // =================================================
+    // BUILD ENTITIES TO INSERT (no DB calls in this loop)
+    // =================================================
 
-					.entityId(UUID.randomUUID()).entityName(entityRequest.getEntityName())
-					.entityTypeId(entityRequest.getEntityTypeId())
-					.registrationNumber(entityRequest.getRegistrationNumber())
-					.companyStartDate(entityRequest.getCompanyStartDate())
-					.noOfEmployees(entityRequest.getNoOfEmployees()).build();
+    List<EntityMaster> toSave = new ArrayList<>();
 
-			entity.setVersion(0L);
+    for (EntityRequest entityRequest : request.getEntities()) {
 
-			entity.setIsDeleted(false);
+      String lowerName = entityRequest.getEntityName().toLowerCase();
 
-			entityRepo.save(entity);
+      if (existingLowerNames.contains(lowerName)) {
 
-			created.add(
+        skipped.add(entityRequest.getEntityName());
 
-					EntityResponse.builder()
+        continue;
+      }
 
-							.entityId(entity.getEntityId()).entityName(entity.getEntityName())
-							.entityTypeId(entity.getEntityTypeId()).registrationNumber(entity.getRegistrationNumber())
-							.status(entity.getStatus().name()).companyStartDate(entity.getCompanyStartDate())
-							.noOfEmployees(entity.getNoOfEmployees()).createdAt(entity.getCreatedAt())
-							.updatedAt(entity.getUpdatedAt()).createdBy(entity.getCreatedBy()).build());
-		}
+      EntityMaster entity = EntityMaster.builder()
 
-		return BulkEntityResponse.builder().totalRequested(request.getEntities().size()).createdCount(created.size())
-				.skippedCount(skipped.size()).createdEntities(created).skippedEntities(skipped)
-				.message("Bulk entity creation completed successfully").build();
-	}
+          .entityId(UUID.randomUUID()).entityName(entityRequest.getEntityName())
+          .entityTypeId(entityRequest.getEntityTypeId())
+          .registrationNumber(entityRequest.getRegistrationNumber())
+          .companyStartDate(entityRequest.getCompanyStartDate())
+          .noOfEmployees(entityRequest.getNoOfEmployees()).build();
 
-	// UPDATE
-	// =====================================================
+      entity.setVersion(0L);
 
-	@Override
-	public EntityResponse update(UUID entityId, EntityRequest request) {
+      entity.setIsDeleted(false);
 
-		EntityMaster entity = fetchWithAccessCheck(entityId);
+      toSave.add(entity);
+    }
 
-		updateNameIfNeeded(entity, request);
-		updateIfPresent(request.getRegistrationNumber(), entity::setRegistrationNumber);
+    // =================================================
+    // FIX (N+1): single batched insert instead of
+    // entityRepo.save() per row in the loop.
+    // Requires hibernate.jdbc.batch_size + order_inserts=true
+    // in application.yml for this to issue batched SQL.
+    // =================================================
 
-		updateIfPresent(request.getNoOfEmployees(), entity::setNoOfEmployees);
+    List<EntityMaster> savedEntities = entityRepo.saveAll(toSave);
 
-		updateIfPresent(request.getCompanyStartDate(), entity::setCompanyStartDate);
+    for (EntityMaster entity : savedEntities) {
 
-		EntityMaster updated = entityRepo.save(entity);
+      created.add(
 
-		log.info("Entity updated id={} by user={}", entityId, UserContext.getUserId());
+          EntityResponse.builder()
 
-		return mapper.toResponse(updated);
+              .entityId(entity.getEntityId()).entityName(entity.getEntityName())
+              .entityTypeId(entity.getEntityTypeId()).registrationNumber(entity.getRegistrationNumber())
+              .status(entity.getStatus().name()).companyStartDate(entity.getCompanyStartDate())
+              .noOfEmployees(entity.getNoOfEmployees()).createdAt(entity.getCreatedAt())
+              .updatedAt(entity.getUpdatedAt()).createdBy(entity.getCreatedBy()).build());
+    }
 
-	}
+    return BulkEntityResponse.builder().totalRequested(request.getEntities().size()).createdCount(created.size())
+        .skippedCount(skipped.size()).createdEntities(created).skippedEntities(skipped)
+        .message("Bulk entity creation completed successfully").build();
+  }
 
-	// =====================================================
-	// GET BY ID
-	// =====================================================
+  // UPDATE
+  // =====================================================
 
-	@Override
-	@Transactional(readOnly = true)
-	public Optional<EntityResponse> getById(UUID entityId) {
+  @Override
+  public EntityResponse update(UUID entityId, EntityRequest request) {
 
-		return Optional.of(mapper.toResponse(fetchWithAccessCheck(entityId)));
-	}
+    EntityMaster entity = fetchWithAccessCheck(entityId);
 
-	// =====================================================
-	// GET ALL (ADMIN ONLY)
-	// =====================================================
+    updateNameIfNeeded(entity, request);
+    updateIfPresent(request.getRegistrationNumber(), entity::setRegistrationNumber);
 
-	@Override
-	@Transactional(readOnly = true)
-	public Page<EntityResponse> getAll(Pageable pageable) {
+    updateIfPresent(request.getNoOfEmployees(), entity::setNoOfEmployees);
 
-		requireRole(Role.ADMIN);
+    updateIfPresent(request.getCompanyStartDate(), entity::setCompanyStartDate);
 
-		return entityRepo.findAll(withDefaultSort(pageable)).map(mapper::toResponse);
-	}
+    EntityMaster updated = entityRepo.save(entity);
 
-	// =====================================================
-	// DELETE (SOFT DELETE)
-	// =====================================================
+    log.info("Entity updated id={} by user={}", entityId, UserContext.getUserId());
 
-	@Override
-	public void delete(UUID entityId) {
+    return mapper.toResponse(updated);
 
-		requireRole(Role.ADMIN);
+  }
 
-		EntityMaster entity = fetchWithAccessCheck(entityId);
-		entity.setIsDeleted(true);
+  // =====================================================
+  // GET BY ID
+  // =====================================================
 
-		entityRepo.save(entity);
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<EntityResponse> getById(UUID entityId) {
 
-		log.info("Entity deleted id={} by user={}", entityId, UserContext.getUserId());
-	}
+    return Optional.of(mapper.toResponse(fetchWithAccessCheck(entityId)));
+  }
 
-	// =====================================================
-	// CUSTOM METHODS
-	// =====================================================
+  // =====================================================
+  // GET ALL (ADMIN ONLY)
+  // =====================================================
 
-	@Override
-	@Transactional(readOnly = true)
-	public List<EntityResponse> getMyEntities() {
+  @Override
+  @Transactional(readOnly = true)
+  public Page<EntityResponse> getAll(Pageable pageable) {
 
-		return entityRepo.findByUserId(UserContext.getUserId()).stream().map(mapper::toResponse).toList();
-	}
+    requireRole(Role.ADMIN);
 
-	@Override
-	@Transactional(readOnly = true)
-	public Page<EntityResponse> getInvestorEntities(Pageable pageable) {
+    return entityRepo.findAll(withDefaultSort(pageable)).map(mapper::toResponse);
+  }
 
-		requireRole(Role.INVESTOR);
+  // =====================================================
+  // DELETE (SOFT DELETE)
+  // =====================================================
 
-		return entityRepo.findInvestorEntities(UserContext.getUserId(), withDefaultSort(pageable))
-				.map(mapper::toResponse);
-	}
+  @Override
+  public void delete(UUID entityId) {
 
-	@Override
-	@Transactional(readOnly = true)
-	public Page<EntityResponse> getRepresentativeEntities(Pageable pageable) {
+    requireRole(Role.ADMIN);
 
-		requireRole(Role.COMPANY_REPRESENTATIVE);
+    EntityMaster entity = fetchWithAccessCheck(entityId);
+    entity.setIsDeleted(true);
 
-		return entityRepo.findRepresentativeEntities(UserContext.getUserId(), withDefaultSort(pageable))
-				.map(mapper::toResponse);
-	}
-	// =====================================================
-	// SECURITY
-	// =====================================================
+    entityRepo.save(entity);
 
-	private void requireRole(Role minimumRole) {
+    log.info("Entity deleted id={} by user={}", entityId, UserContext.getUserId());
+  }
 
-		if (!UserContext.hasMinimumRole(minimumRole)) {
-			throw new BaseException(AuthErrorCode.AUTH_FORBIDDEN, "Access denied");
-		}
-	}
+  // =====================================================
+  // CUSTOM METHODS
+  // =====================================================
 
-	private EntityMaster fetchWithAccessCheck(UUID entityId) {
+  @Override
+  @Transactional(readOnly = true)
+  public List<EntityResponse> getMyEntities() {
 
-		boolean isAdmin = UserContext.hasMinimumRole(Role.ADMIN);
+    return entityRepo.findByUserId(UserContext.getUserId()).stream().map(mapper::toResponse).toList();
+  }
 
-		if (!isAdmin) {
-			boolean mapped = mapperRepo.existsByUserIdAndEntityIdAndIsDeletedFalse(UserContext.getUserId(), entityId);
+  @Override
+  @Transactional(readOnly = true)
+  public Page<EntityResponse> getInvestorEntities(Pageable pageable) {
 
-			if (!mapped) {
-				throw new BaseException(AuthErrorCode.AUTH_FORBIDDEN);
-			}
-		}
+    requireRole(Role.INVESTOR);
 
-		return entityRepo.findById(entityId)
-				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
-	}
+    return entityRepo.findInvestorEntities(UserContext.getUserId(), withDefaultSort(pageable))
+        .map(mapper::toResponse);
+  }
 
-	// =====================================================
-	// HELPERS
-	// =====================================================
+  @Override
+  @Transactional(readOnly = true)
+  public Page<EntityResponse> getRepresentativeEntities(Pageable pageable) {
 
-	private void updateNameIfNeeded(EntityMaster entity, EntityRequest request) {
+    requireRole(Role.COMPANY_REPRESENTATIVE);
 
-		String newName = request.getEntityName();
+    return entityRepo.findRepresentativeEntities(UserContext.getUserId(), withDefaultSort(pageable))
+        .map(mapper::toResponse);
+  }
+  // =====================================================
+  // SECURITY
+  // =====================================================
 
-		if (newName == null || newName.isBlank())
-			return;
+  private void requireRole(Role minimumRole) {
 
-		if (!newName.equalsIgnoreCase(entity.getEntityName())) {
+    if (!UserContext.hasMinimumRole(minimumRole)) {
+      throw new BaseException(AuthErrorCode.AUTH_FORBIDDEN, "Access denied");
+    }
+  }
 
-			validateNoDuplicateName(newName, entity.getEntityId());
+  private EntityMaster fetchWithAccessCheck(UUID entityId) {
 
-			entity.setEntityName(newName.trim());
-		}
-	}
+    boolean isAdmin = UserContext.hasMinimumRole(Role.ADMIN);
 
-	private void updateIfPresent(Integer value, java.util.function.Consumer<Integer> setter) {
+    if (!isAdmin) {
+      boolean mapped = mapperRepo.existsByUserIdAndEntityIdAndIsDeletedFalse(UserContext.getUserId(), entityId);
 
-		if (value != null) {
-			setter.accept(value);
-		}
-	}
+      if (!mapped) {
+        throw new BaseException(AuthErrorCode.AUTH_FORBIDDEN);
+      }
+    }
 
-	private void updateIfPresent(java.time.LocalDate value, java.util.function.Consumer<java.time.LocalDate> setter) {
+    return entityRepo.findById(entityId)
+        .orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
+  }
 
-		if (value != null) {
-			setter.accept(value);
-		}
-	}
+  // =====================================================
+  // HELPERS
+  // =====================================================
 
-	private void updateIfPresent(String value, java.util.function.Consumer<String> setter) {
+  private void updateNameIfNeeded(EntityMaster entity, EntityRequest request) {
 
-		if (value != null && !value.isBlank()) {
-			setter.accept(value.trim());
-		}
-	}
+    String newName = request.getEntityName();
 
-	private void validateNoDuplicateName(String name, UUID excludeId) {
+    if (newName == null || newName.isBlank())
+      return;
 
-		boolean exists = (excludeId == null) ? entityRepo.existsByEntityNameIgnoreCaseAndIsDeletedFalse(name)
-				: entityRepo.existsByEntityNameIgnoreCaseAndEntityIdNotAndIsDeletedFalse(name, excludeId);
+    if (!newName.equalsIgnoreCase(entity.getEntityName())) {
 
-		if (exists) {
-			throw new ResourceNotFoundException(EntityErrorCode.ENTITY_ALREADY_EXISTS);
-		}
-	}
+      validateNoDuplicateName(newName, entity.getEntityId());
 
-	private Pageable withDefaultSort(Pageable pageable) {
+      entity.setEntityName(newName.trim());
+    }
+  }
 
-		if (pageable == null) {
-			return PageRequest.of(0, 20, Sort.by("createdAt").descending());
-		}
+  private void updateIfPresent(Integer value, java.util.function.Consumer<Integer> setter) {
 
-		if (pageable.getSort().isUnsorted()) {
-			return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
-		}
+    if (value != null) {
+      setter.accept(value);
+    }
+  }
 
-		return pageable;
-	}
+  private void updateIfPresent(java.time.LocalDate value, java.util.function.Consumer<java.time.LocalDate> setter) {
 
-	@Override
-	@Transactional
-	public void mapUser(UUID entityId, EntityUserMappingRequest request) {
+    if (value != null) {
+      setter.accept(value);
+    }
+  }
 
-		requireRole(Role.ADMIN);
+  private void updateIfPresent(String value, java.util.function.Consumer<String> setter) {
 
-		EntityMaster entity = entityRepo.findByEntityIdAndIsDeletedFalse(entityId)
+    if (value != null && !value.isBlank()) {
+      setter.accept(value.trim());
+    }
+  }
 
-				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
+  private void validateNoDuplicateName(String name, UUID excludeId) {
 
-		boolean alreadyMapped = mapperRepo.existsByEntityIdAndUserIdAndRoleIdAndIsDeletedFalse(entityId,
-				request.getUserId(), request.getRoleId());
-		if (alreadyMapped) {
-			throw new BaseException(EntityErrorCode.ENTITY_ALREADT_MAPPED, "User already mapped to entity");
-		}
+    boolean exists = (excludeId == null) ? entityRepo.existsByEntityNameIgnoreCaseAndIsDeletedFalse(name)
+        : entityRepo.existsByEntityNameIgnoreCaseAndEntityIdNotAndIsDeletedFalse(name, excludeId);
 
-		EntityUserMapper mapperEntity = EntityUserMapper.builder()
+    if (exists) {
+      throw new ResourceNotFoundException(EntityErrorCode.ENTITY_ALREADY_EXISTS);
+    }
+  }
 
-				.entityUserId(UUID.randomUUID()).entityId(entity.getEntityId()).userId(request.getUserId())
-				.roleId(request.getRoleId()).ownershipPercentage(request.getOwnershipPercentage())
-				.relationshipType(request.getRelationshipType()).investmentAmount(request.getInvestmentAmount())
-				.build();
-		mapperEntity.setVersion(0L);
-		mapperEntity.setIsDeleted(false);
-		mapperRepo.save(mapperEntity);
-		mapperEntity.setVersion(0L);
+  private Pageable withDefaultSort(Pageable pageable) {
 
-		mapperEntity.setIsDeleted(false);
+    if (pageable == null) {
+      return PageRequest.of(0, 20, Sort.by("createdAt").descending());
+    }
 
-		log.info("REQUEST ROLE ID = {}", request.getRoleId());
+    if (pageable.getSort().isUnsorted()) {
+      return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
+    }
 
-		log.info("ENTITY ROLE ID = {}", mapperEntity.getRoleId());
-		log.info("Mapped user={} to entity={} relationship={}", request.getUserId(), entityId,
-				request.getRelationshipType());
-	}
+    return pageable;
+  }
 
-	@Override
-	@Transactional
-	public void mapUsers(UUID entityId, EntityBulkUserMappingRequest request) {
+  @Override
+  @Transactional
+  public void mapUser(UUID entityId, EntityUserMappingRequest request) {
 
-		requireRole(Role.ADMIN);
+    requireRole(Role.ADMIN);
 
-		if (request == null || request.getUsers() == null || request.getUsers().isEmpty()) {
+    EntityMaster entity = entityRepo.findByEntityIdAndIsDeletedFalse(entityId)
 
-			throw new BaseException(EntityErrorCode.ENTITY_RELATIONSHIP_TYPE, "Users list cannot be empty");
-		}
+        .orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
 
-		EntityMaster entity = entityRepo.findByEntityIdAndIsDeletedFalse(entityId)
-				.orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
+    boolean alreadyMapped = mapperRepo.existsByEntityIdAndUserIdAndRoleIdAndIsDeletedFalse(entityId,
+        request.getUserId(), request.getRoleId());
+    if (alreadyMapped) {
+      throw new BaseException(EntityErrorCode.ENTITY_ALREADT_MAPPED, "User already mapped to entity");
+    }
 
-		for (EntityUserMappingRequest userRequest : request.getUsers()) {
+    EntityUserMapper mapperEntity = EntityUserMapper.builder()
 
-			boolean alreadyInvested = mapperRepo.existsByEntityIdAndUserIdAndIsDeletedFalse(entityId,
-					userRequest.getUserId());
+        .entityUserId(UUID.randomUUID()).entityId(entity.getEntityId()).userId(request.getUserId())
+        .roleId(request.getRoleId()).ownershipPercentage(request.getOwnershipPercentage())
+        .relationshipType(request.getRelationshipType()).investmentAmount(request.getInvestmentAmount())
+        .build();
+    mapperEntity.setVersion(0L);
+    mapperEntity.setIsDeleted(false);
+    mapperRepo.save(mapperEntity);
+    mapperEntity.setVersion(0L);
 
-			if (alreadyInvested) {
+    mapperEntity.setIsDeleted(false);
 
-				throw new BaseException(EntityErrorCode.USER_ALREADY_INVESTED, "User already invested in this entity");
-			}
+    log.info("REQUEST ROLE ID = {}", request.getRoleId());
 
-			Set<String> allowedRelationships = Set.of("PRIMARY_INVESTOR", "REPRESENTATIVE");
+    log.info("ENTITY ROLE ID = {}", mapperEntity.getRoleId());
+    log.info("Mapped user={} to entity={} relationship={}", request.getUserId(), entityId,
+        request.getRelationshipType());
+  }
 
-			if (!allowedRelationships.contains(userRequest.getRelationshipType())) {
+  @Override
+  @Transactional
+  public void mapUsers(UUID entityId, EntityBulkUserMappingRequest request) {
 
-				log.warn("Skipping invalid relationship type for userId={}", userRequest.getUserId());
+    requireRole(Role.ADMIN);
 
-				continue;
+    if (request == null || request.getUsers() == null || request.getUsers().isEmpty()) {
 
-			}
+      throw new BaseException(EntityErrorCode.ENTITY_RELATIONSHIP_TYPE, "Users list cannot be empty");
+    }
 
-			EntityUserMapper mapperEntity = EntityUserMapper.builder()
+    EntityMaster entity = entityRepo.findByEntityIdAndIsDeletedFalse(entityId)
+        .orElseThrow(() -> new ResourceNotFoundException(EntityErrorCode.ENTITY_NOT_FOUND, entityId));
 
-					.entityUserId(UUID.randomUUID())
+    for (EntityUserMappingRequest userRequest : request.getUsers()) {
 
-					.entityId(entity.getEntityId())
+      boolean alreadyInvested = mapperRepo.existsByEntityIdAndUserIdAndIsDeletedFalse(entityId,
+          userRequest.getUserId());
 
-					.userId(userRequest.getUserId())
+      String relationship = userRequest.getRelationshipType();
 
-					.roleId(userRequest.getRoleId())
+      if (alreadyInvested) {
 
-					.ownershipPercentage(userRequest.getOwnershipPercentage())
+        throw new BaseException(EntityErrorCode.USER_ALREADY_INVESTED, "User already invested in this entity");
+      }
 
-					.investmentAmount(userRequest.getInvestmentAmount())
+      Set<String> allowedRelationships = Set.of("PRIMARY_INVESTOR", "REPRESENTATIVE");
 
-					.relationshipType(userRequest.getRelationshipType())
+      if (relationship == null || !allowedRelationships.contains(relationship.trim().toUpperCase())
 
-					.build();
+      ) {
 
-			mapperEntity.setVersion(0L);
+        log.warn("Skipping invalid relationship type user={}", userRequest.getUserId());
 
-			mapperEntity.setIsDeleted(false);
+        continue;
 
-			mapperRepo.save(
-			        mapperEntity
-			);
+      }
+      EntityUserMapper mapperEntity = EntityUserMapper.builder()
 
-			// =============================================
-			// PRODUCE DOWNSTREAM EVENTS
-			// =============================================
+          .entityUserId(UUID.randomUUID())
 
-			}
-		}
-	}
+          .entityId(entity.getEntityId())
 
-	
+          .userId(userRequest.getUserId())
+
+          .roleId(userRequest.getRoleId())
+
+          .ownershipPercentage(userRequest.getOwnershipPercentage())
+
+          .investmentAmount(userRequest.getInvestmentAmount())
+
+          .relationshipType(userRequest.getRelationshipType())
+
+          .build();
+
+      mapperEntity.setVersion(0L);
+
+      mapperEntity.setIsDeleted(false);
+
+      mapperRepo.save(mapperEntity);
+
+      publishDownstream(
+
+          entity,
+
+          userRequest,
+
+          relationship
+
+      );
+    }
+
+  }
+
+  private void publishDownstream(
+
+      EntityMaster entity,
+
+      EntityUserMappingRequest userRequest,
+
+      String relationship
+
+  ) {
+
+    if (
+
+    "PRIMARY_INVESTOR"
+
+        .equalsIgnoreCase(
+
+            relationship
+
+        )
+
+    ) {
+
+      InvestorEntityEvent event =
+
+          InvestorEntityEvent.builder()
+
+              .id(UUID.randomUUID())
+
+              .aggregateId(entity.getEntityId())
+
+              .entityId(entity.getEntityId())
+
+              .userId(userRequest.getUserId())
+
+              .relationshipType(relationship)
+
+              .build();
+
+      investorProducer.publish(event);
+
+      log.info(
+
+          "Investor event published entity={}",
+
+          entity.getEntityId()
+
+      );
+
+    }
+
+    else if (
+
+    "REPRESENTATIVE"
+
+        .equalsIgnoreCase(
+
+            relationship
+
+        )
+
+    ) {
+
+      RepresentativeEntityEvent event =
+
+          RepresentativeEntityEvent.builder()
+
+              .id(UUID.randomUUID())
+
+              .aggregateId(entity.getEntityId())
+
+              .entityId(entity.getEntityId())
+
+              .userId(userRequest.getUserId())
+
+              .relationshipType(relationship)
+
+              .build();
+
+      representativeProducer.publish(event);
+
+      log.info(
+
+          "Representative event published entity={}",
+
+          entity.getEntityId()
+
+      );
+
+    }
+
+  }
+
+  @Override
+  @Transactional
+  public void createEntityFromUser(UserEvent event) {
+
+    if (event == null) {
+
+      return;
+
+    }
+
+    boolean exists =
+
+        entityRepo.existsByEntityNameIgnoreCaseAndIsDeletedFalse(
+
+            event.getUsername()
+
+        );
+
+    if (exists) {
+
+      log.info(
+
+          "Entity already exists user={}",
+
+          event.getUserId()
+
+      );
+
+      return;
+
+    }
+
+    EntityMaster entity =
+
+        EntityMaster.builder()
+
+            .entityId(UUID.randomUUID())
+
+            .entityName(event.getUsername())
+
+            .status(EntityStatus.ACTIVE)
+
+            .build();
+
+    entity.setVersion(0L);
+
+    entity.setIsDeleted(false);
+
+    entityRepo.save(entity);
+
+    log.info(
+
+        "Entity created from user {}",
+
+        event.getUserId()
+
+    );
+
+  }
+
+  @Override
+  @Transactional
+  public void removeUserMappings(UUID userId) {
+
+    List<EntityUserMapper> mappings = mapperRepo.findByUserIdAndIsDeletedFalse(userId);
+    if (mappings.isEmpty()) {
+      log.info(
+
+          "No mappings found user={}", userId
+
+      );
+
+      return;
+
+    }
+
+    mappings.forEach(
+
+        mapping ->
+
+        mapping.setIsDeleted(true)
+
+    );
+
+    mapperRepo.saveAll(mappings);
+
+    log.info(
+
+        "Mappings removed user={}",
+
+        userId
+
+    );
+
+  }
+
+}

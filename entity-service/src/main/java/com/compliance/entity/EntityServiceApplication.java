@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableDiscoveryClient
 
 public class EntityServiceApplication {
-	public static void main(String[] args) {
-		SpringApplication.run(EntityServiceApplication.class, args);
-	}
+  public static void main(String[] args) {
+    SpringApplication.run(EntityServiceApplication.class, args);
+  }
 }

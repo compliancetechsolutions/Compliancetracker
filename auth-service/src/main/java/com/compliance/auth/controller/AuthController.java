@@ -44,7 +44,7 @@ public class AuthController extends BaseController {
     public ResponseEntity<ApiResponse<LoginResponseDto>> login(
             @Valid @RequestBody LoginRequestDto request,
             @RequestHeader(value = "X-Forwarded-For", required = false) String ip) {
-    	System.out.println("LOGIN API HIT");
+      System.out.println("LOGIN API HIT");
         LoginResponseDto response = authService.login(request, ip);
         return created("Login successful", response);
     }

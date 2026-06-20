@@ -16,8 +16,8 @@ import com.compliance.compliance.entity.ComplianceDeadline;
 @Repository
 
 public interface ComplianceDeadlineRepository extends BaseRepository<ComplianceDeadline, UUID> {
-	List<ComplianceDeadline> findByReminderDate(LocalDate reminderDate);
+  List<ComplianceDeadline> findByReminderDate(LocalDate reminderDate);
 
-	List<ComplianceDeadline> findByDueDateBefore(LocalDate date);
+  List<ComplianceDeadline> findByDueDateBefore(LocalDate date);
 
 }

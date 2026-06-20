@@ -23,17 +23,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EntityRiskProfile extends BaseEntity {
-	@Id
-	@Column(name = "risk_profile_id")
-	private UUID riskProfileId;
+  @Id
+  @Column(name = "risk_profile_id")
+  private UUID riskProfileId;
 
-	@Column(name = "entity_id")
-	private UUID entityId;
+  @Column(name = "entity_id")
+  private UUID entityId;
 
-	@Column(name = "risk_level")
-	private String riskLevel;
+  @Column(name = "risk_level")
+  private String riskLevel;
 
-	@Column(name = "risk_score")
-	private Double riskScore;
+  @Column(name = "risk_score")
+  private Double riskScore;
 
 }

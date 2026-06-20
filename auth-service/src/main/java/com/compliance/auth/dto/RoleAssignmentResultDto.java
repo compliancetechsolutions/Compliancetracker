@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RoleAssignmentResultDto {
-	 private List<String> added;
-	    private List<String> skipped;
-	    private List<String> notFound;
+   private List<String> added;
+      private List<String> skipped;
+      private List<String> notFound;
 
 }

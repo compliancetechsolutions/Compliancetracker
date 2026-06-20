@@ -31,34 +31,34 @@ import lombok.extern.slf4j.Slf4j;
 @Configuration
 public class DroolsConfig {
 
-	@Bean
-	public KieServices kieServices() {
-		return KieServices.Factory.get();
-	}
+  @Bean
+  public KieServices kieServices() {
+    return KieServices.Factory.get();
+  }
 
-	@Bean
-	public KieContainer kieContainer(KieServices kieServices) {
-		log.info("[DROOLS] Initialising KieContainer from classpath");
-		return kieServices.newKieClasspathContainer();
-	}
+  @Bean
+  public KieContainer kieContainer(KieServices kieServices) {
+    log.info("[DROOLS] Initialising KieContainer from classpath");
+    return kieServices.newKieClasspathContainer();
+  }
 
-	/**
-	 * Thread-safe Drools knowledge base.
-	 *
-	 * <p>
-	 * {@code KieBase} is immutable after construction and safe to share across
-	 * threads. It is created once at startup from the {@code complianceRules}
-	 * KieBase defined in {@code src/main/resources/META-INF/kmodule.xml}.
-	 */
-	@Bean
-	public KieBase kieBase(KieContainer container) {
-		log.info("[DROOLS] Loading KieBase 'complianceRules'");
-		return container.getKieBase("complianceRules");
-	}
+  /**
+   * Thread-safe Drools knowledge base.
+   *
+   * <p>
+   * {@code KieBase} is immutable after construction and safe to share across
+   * threads. It is created once at startup from the {@code complianceRules}
+   * KieBase defined in {@code src/main/resources/META-INF/kmodule.xml}.
+   */
+  @Bean
+  public KieBase kieBase(KieContainer container) {
+    log.info("[DROOLS] Loading KieBase 'complianceRules'");
+    return container.getKieBase("complianceRules");
+  }
 
-	// NOTE: KieSession is NOT registered as a bean.
-	// ComplianceRuleServiceImpl creates a new KieSession per call:
-	// KieSession session = kieBase.newKieSession();
-	// try { ... } finally { session.dispose(); }
-	// This is the only correct pattern for concurrent use.
+  // NOTE: KieSession is NOT registered as a bean.
+  // ComplianceRuleServiceImpl creates a new KieSession per call:
+  // KieSession session = kieBase.newKieSession();
+  // try { ... } finally { session.dispose(); }
+  // This is the only correct pattern for concurrent use.
 }

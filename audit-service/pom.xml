@@ -25,10 +25,10 @@
 <artifactId>spring-kafka</artifactId>
 </dependency>
 
-	<dependency>
-		<groupId>com.compliance</groupId>
-		<artifactId>common-service</artifactId>
-		</dependency>
+  <dependency>
+    <groupId>com.compliance</groupId>
+    <artifactId>common-service</artifactId>
+    </dependency>
 </dependencies>
 <build>
     <plugins>

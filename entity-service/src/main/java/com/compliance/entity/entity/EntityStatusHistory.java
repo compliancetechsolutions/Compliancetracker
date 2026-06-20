@@ -24,20 +24,20 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EntityStatusHistory extends BaseEntity {
-	@Id
-	@Column(name = "status_history_id")
-	private UUID statusHistoryId;
+  @Id
+  @Column(name = "status_history_id")
+  private UUID statusHistoryId;
 
-	@Column(name = "entity_id")
-	private UUID entityId;
+  @Column(name = "entity_id")
+  private UUID entityId;
 
-	@Column(name = "old_status")
-	private String oldStatus;
+  @Column(name = "old_status")
+  private String oldStatus;
 
-	@Column(name = "new_status")
-	private String newStatus;
+  @Column(name = "new_status")
+  private String newStatus;
 
-	@Column(name = "changed_at")
-	private LocalDateTime changedAt;
+  @Column(name = "changed_at")
+  private LocalDateTime changedAt;
 
 }

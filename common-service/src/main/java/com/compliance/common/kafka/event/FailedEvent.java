@@ -29,7 +29,12 @@ public class FailedEvent extends BaseEvent {
     // TOPIC NAME
     // =====================================================
 
-    @Column(name = "topic_name")
+    /**
+   * 
+   */
+  private static final long serialVersionUID = 1L;
+
+  @Column(name = "topic_name")
     private String topicName;
 
     // =====================================================
@@ -62,21 +67,14 @@ public class FailedEvent extends BaseEvent {
     public void prePersist() {
 
         this.createdAt = LocalDateTime.now();
-
         this.updatedAt = LocalDateTime.now();
-
         if (this.timestamp == null) {
-
             this.timestamp = LocalDateTime.now();
         }
-
         if (this.retryCount == null) {
-
             this.retryCount = 0;
         }
-
         if (this.status == null) {
-
             this.status = "FAILED";
         }
     }

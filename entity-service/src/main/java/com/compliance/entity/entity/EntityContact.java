@@ -25,18 +25,18 @@ import lombok.NoArgsConstructor;
 @Builder
 public class EntityContact extends BaseEntity {
 
-	@Id
-	@Column(name = "contact_id")
-	private UUID contactId;
+  @Id
+  @Column(name = "contact_id")
+  private UUID contactId;
 
-	@Column(name = "entity_id")
-	private UUID entityId;
+  @Column(name = "entity_id")
+  private UUID entityId;
 
-	@Column(name = "contact_name")
-	private String contactName;
+  @Column(name = "contact_name")
+  private String contactName;
 
-	private String email;
+  private String email;
 
-	private String phone;
+  private String phone;
 
 }

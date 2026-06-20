@@ -6,11 +6,11 @@ import lombok.Data;
 
 @Data
 public class BulkCreateUserRequestDto {
-	
+  
     private List<CreateUserRequestDto> users;
     
-	
-	
-	
+  
+  
+  
 
 }

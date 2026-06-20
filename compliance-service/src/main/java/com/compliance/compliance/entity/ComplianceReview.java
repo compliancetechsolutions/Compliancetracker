@@ -28,36 +28,36 @@ import lombok.Setter;
 
 public class ComplianceReview
 
-		extends BaseEntity {
+    extends BaseEntity {
 
 // ========================================
 // PRIMARY KEY
 // ========================================
 
-	@Id
+  @Id
 
-	@Column(name = "review_id", nullable = false)
+  @Column(name = "review_id", nullable = false)
 
-	private UUID reviewId;
+  private UUID reviewId;
 
 // ========================================
 // REFERENCES
 // ========================================
 
-	@Column(name = "compliance_id", nullable = false)
+  @Column(name = "compliance_id", nullable = false)
 
-	private UUID complianceId;
+  private UUID complianceId;
 
 // ========================================
 // REVIEW
 // ========================================
 
-	@Column(name = "reviewed_by", nullable = false)
+  @Column(name = "reviewed_by", nullable = false)
 
-	private UUID reviewedBy;
+  private UUID reviewedBy;
 
-	@Column(name = "review_status", length = 50)
+  @Column(name = "review_status", length = 50)
 
-	private String reviewStatus;
+  private String reviewStatus;
 
 }

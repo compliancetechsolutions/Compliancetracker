@@ -15,66 +15,66 @@ import jakarta.persistence.LockModeType;
 
 public interface BaseRepository<T, ID extends Serializable>
 
-		extends
+    extends
 
-		JpaRepository<T, ID>,
+    JpaRepository<T, ID>,
 
-		JpaSpecificationExecutor<T> {
+    JpaSpecificationExecutor<T> {
 
 // =====================================================
 // BASIC
 // =====================================================
 
-	@Override
-	Optional<T> findById(ID id);
+  @Override
+  Optional<T> findById(ID id);
 
-	@Override
-	boolean existsById(ID id);
+  @Override
+  boolean existsById(ID id);
 
 // =====================================================
 // BATCH
 // =====================================================
 
-	@Override
-	<S extends T> List<S> saveAll(Iterable<S> entities);
+  @Override
+  <S extends T> List<S> saveAll(Iterable<S> entities);
 
-	@Override
-	void deleteAllInBatch();
+  @Override
+  void deleteAllInBatch();
 
 // =====================================================
 // LOCKING
 // =====================================================
 
-	@Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
 
-	Optional<T> findWithLockById(ID id);
+  Optional<T> findWithLockById(ID id);
 
 // =====================================================
 // UTIL
 // =====================================================
 
-	default T getRequired(
+  default T getRequired(
 
-			ID id
+      ID id
 
-	) {
+  ) {
 
-		return findById(id)
+    return findById(id)
 
-				.orElseThrow(
+        .orElseThrow(
 
-						() ->
+            () ->
 
-						new IllegalArgumentException(
+            new IllegalArgumentException(
 
-								"Record not found : "
+                "Record not found : "
 
-										+ id
+                    + id
 
-						)
+            )
 
-				);
+        );
 
-	}
+  }
 
 }

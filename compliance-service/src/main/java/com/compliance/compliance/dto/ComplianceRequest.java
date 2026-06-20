@@ -28,61 +28,61 @@ public class ComplianceRequest {
 // ENTITY
 // =====================================================
 
-	@NotNull(message = "Entity Id required")
+  @NotNull(message = "Entity Id required")
 
-	private UUID entityId;
+  private UUID entityId;
 
-	@NotNull(message = "Activity Id required")
+  @NotNull(message = "Activity Id required")
 
-	private UUID activityId;
+  private UUID activityId;
 
 // =====================================================
 // COMPLIANCE
 // =====================================================
 
-	@NotBlank(message = "Compliance type required")
+  @NotBlank(message = "Compliance type required")
 
-	@Size(max = 100)
+  @Size(max = 100)
 
-	private String complianceType;
+  private String complianceType;
 
-	@NotBlank(message = "Frequency required")
+  @NotBlank(message = "Frequency required")
 
-	private String frequency;
+  private String frequency;
 
-	@NotBlank(message = "Status required")
+  @NotBlank(message = "Status required")
 
-	private String status;
+  private String status;
 
 // =====================================================
 // DATES
 // =====================================================
 
-	@NotNull(message = "Due date required")
+  @NotNull(message = "Due date required")
 
-	@FutureOrPresent
+  @FutureOrPresent
 
-	private LocalDate dueDate;
+  private LocalDate dueDate;
 
-	private LocalDate effectiveDate;
+  private LocalDate effectiveDate;
 
 // =====================================================
 // RULE
 // =====================================================
 
-	private UUID ruleId;
+  private UUID ruleId;
 
 // =====================================================
 // NOTIFICATION
 // =====================================================
 
-	@Builder.Default
+  @Builder.Default
 
-	private Boolean notificationRequired = true;
+  private Boolean notificationRequired = true;
 
-	@Builder.Default
+  @Builder.Default
 
-	private Integer priority = 5;
+  private Integer priority = 5;
 
 // =====================================================
 // EXTRA

@@ -4,6 +4,9 @@ import com.compliance.common.kafka.event.UserEvent;
 
 public interface EntityEventService {
 
+  
+  void createEntityFromUser( UserEvent event );
+  
     // =====================================================
     // USER CREATED
     // =====================================================

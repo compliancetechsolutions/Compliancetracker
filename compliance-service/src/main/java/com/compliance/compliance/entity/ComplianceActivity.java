@@ -29,21 +29,21 @@ import lombok.Setter;
 
 public class ComplianceActivity
 
-		extends BaseEntity {
+    extends BaseEntity {
 
-	@Id
+  @Id
 
-	@Column(name = "activity_id")
+  @Column(name = "activity_id")
 
-	private UUID activityId;
+  private UUID activityId;
 
-	@Column(name = "activity_name")
+  @Column(name = "activity_name")
 
-	private String activityName;
+  private String activityName;
 
-	@Column(name = "description")
+  @Column(name = "description")
 
-	private String description;
+  private String description;
 
 @Column(
 name="frequency"

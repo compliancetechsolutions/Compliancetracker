@@ -1,4 +1,3 @@
-
 package com.compliance.compliance.integration.kafka.producer;
 
 import java.util.concurrent.CompletableFuture;
@@ -20,149 +19,227 @@ import com.compliance.compliance.event.ComplianceCompletedEvent;
 import com.compliance.compliance.event.ComplianceCreatedEvent;
 
 @Slf4j
-
 @Component
-
 @RequiredArgsConstructor
-
 public class ComplianceEventProducer {
 
-	private final KafkaTemplate<String, Object> kafkaTemplate;
+  private final KafkaTemplate<String, Object> kafkaTemplate;
 
-	@Value("${app.kafka.topics.compliance-created}")
+  @Value("${app.kafka.topics.compliance-created}")
+  private String createdTopic;
 
-	private String createdTopic;
+  @Value("${app.kafka.topics.compliance-completed}")
+  private String completedTopic;
 
-	@Value("${app.kafka.topics.compliance-completed}")
+// ==========================================
+// GENERIC
+// ==========================================
 
-	private String completedTopic;
+  public void publish(
 
-// =====================================
+      Object event
+
+  ) {
+
+    if (
+
+    event instanceof ComplianceCreatedEvent
+
+    ) {
+
+      publishCreated(
+
+          (ComplianceCreatedEvent)
+
+          event
+
+      );
+
+    }
+
+    else if (
+
+    event instanceof ComplianceCompletedEvent
+
+    ) {
+
+      publishCompleted(
+
+          (ComplianceCompletedEvent)
+
+          event
+
+      );
+
+    }
+
+    else {
+
+      throw new IllegalArgumentException(
+
+          "Unsupported compliance event"
+
+      );
+
+    }
+
+  }
+
+// ==========================================
 // CREATED
-// =====================================
+// ==========================================
 
-	public void publishCreated(
+  public CompletableFuture<SendResult<String, Object>>
 
-			ComplianceCreatedEvent event
+      publishCreated(
 
-	) {
+          ComplianceCreatedEvent event
 
-		CompletableFuture<SendResult<String, Object>>
+  ) {
 
-		future =
+    return kafkaTemplate
 
-				kafkaTemplate.send(
+        .send(
 
-						createdTopic,
+            createdTopic,
 
-						event.getComplianceId().toString(),
+            event.getComplianceId().toString(),
 
-						event
+            event
 
-				);
+        )
 
-		future.whenComplete(
+        .whenComplete(
 
-				(result, ex) -> {
+            (
 
-					if (
+                result,
 
-				ex == null
+                ex
 
-				) {
+            ) -> {
 
-						log.info(
+              if (
 
-								"Published created event {}",
+            ex
 
-								event.getComplianceId()
+                ==
 
-				);
+                null
 
-					}
+            ) {
 
-				else {
+                log.info(
 
-						log.error(
+                    "Published compliance created {}",
 
-								"Publish failed {}",
+                    event.getComplianceId()
 
-								event.getComplianceId(),
+            );
 
-								ex
+              }
 
-				);
+            else {
 
-					}
+                log.error(
 
-				}
+                    "Publish failed {}",
 
-		);
+                    event.getComplianceId(),
 
-	}
+                    ex
 
-// =====================================
+            );
+
+              }
+
+            }
+
+        );
+
+  }
+
+// ==========================================
 // COMPLETED
-// =====================================
+// ==========================================
 
-	public void publishCompleted(
+public CompletableFuture<
+        SendResult<
+                String,
+                Object
+        >
+>
 
-			ComplianceCompletedEvent event
+publishCompleted(
 
-	) {
+        ComplianceCompletedEvent event
 
-		CompletableFuture<SendResult<String, Object>>
+) {
 
-		future =
+    return kafkaTemplate
 
-				kafkaTemplate.send(
+            .send(
 
-						completedTopic,
+                    completedTopic,
 
-						event.getComplianceId().toString(),
+                    event
+                            .getComplianceId()
+                            .toString(),
 
-						event
+                    event
 
-				);
+            )
 
-		future.whenComplete(
+            .whenComplete(
 
-				(result, ex) -> {
+                    (
 
-					if (
+                            result,
 
-				ex == null
+                            ex
 
-				) {
+                    ) -> {
 
-						log.info(
+                        if (
 
-								"Published completed {}",
+                                ex
 
-								event.getComplianceId()
+                                ==
 
-				);
+                                null
 
-					}
+                        ) {
 
-				else {
+                            log.info(
 
-						log.error(
+                                    "Published compliance completed {}",
 
-								"Publish completed failed {}",
+                                    event
+                                            .getComplianceId()
 
-								event.getComplianceId(),
+                            );
 
-								ex
+                        }
 
-				);
+                        else {
 
-					}
+                            log.error(
 
-				}
+                                    "Publish failed {}",
 
-		);
+                                    event
+                                            .getComplianceId(),
 
-	}
+                                    ex
+
+                            );
+
+                        }
+
+                    }
+
+            );
+
+}
 
 }

@@ -28,52 +28,62 @@ import com.compliance.common.kafka.event.BaseEvent;
 
 public class ComplianceCreatedEvent
 
-		extends BaseEvent {
+    extends BaseEvent {
 
 // =====================================
 // COMPLIANCE
 // =====================================
 
-	private UUID complianceId;
+  /**
+       * 
+       */
+      private static final long serialVersionUID = 2163159740327864197L;
 
-	private UUID entityId;
+  /**
+       * 
+       */
+     
 
-	private UUID activityId;
+  private UUID complianceId;
 
-	private UUID ruleId;
+  private UUID entityId;
+
+  private UUID activityId;
+
+  private UUID ruleId;
 
 // =====================================
 // BUSINESS
 // =====================================
 
-	private String complianceType;
+  private String complianceType;
 
-	private String frequency;
+  private String frequency;
 
-	private String status;
+  private String status;
 
 // =====================================
 // DATES
 // =====================================
 
-	private LocalDate dueDate;
+  private LocalDate dueDate;
 
-	private LocalDate effectiveDate;
+  private LocalDate effectiveDate;
 
 // =====================================
 // NOTIFICATION
 // =====================================
 
-	private Boolean notificationRequired;
+  private Boolean notificationRequired;
 
-	private Integer priority;
+  private Integer priority;
 
 // =====================================
 // AUDIT
 // =====================================
 
-	private UUID createdBy;
+  private UUID createdBy;
 
-	private String remarks;
+  private String remarks;
 
 }

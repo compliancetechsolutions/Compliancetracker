@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 public class PaginationRequestDto {
 
-	private Integer page = 0;
-	private Integer size = 20;
-	private List<String> sort;
+  private Integer page = 0;
+  private Integer size = 20;
+  private List<String> sort;
 }

@@ -9,11 +9,11 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 
 public abstract class BaseRequestDto extends BaseDto {
-	private String requestId;
+  private String requestId;
 
-	// 🔥 Who is making the request (optional - from gateway)
-	private String requestedBy;
+  // 🔥 Who is making the request (optional - from gateway)
+  private String requestedBy;
 
-	// 🔥 Timestamp of request
-	private LocalDateTime requestTime;
+  // 🔥 Timestamp of request
+  private LocalDateTime requestTime;
 }

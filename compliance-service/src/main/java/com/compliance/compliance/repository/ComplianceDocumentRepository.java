@@ -15,7 +15,7 @@ import com.compliance.compliance.entity.ComplianceDocument;
 
 public interface ComplianceDocumentRepository extends BaseRepository<ComplianceDocument, UUID> {
 
-	List<ComplianceDocument> findByComplianceId(UUID complianceId);
-	List<ComplianceDocument> findByDocumentNameContainingIgnoreCase(String documentName);
+  List<ComplianceDocument> findByComplianceId(UUID complianceId);
+  List<ComplianceDocument> findByDocumentNameContainingIgnoreCase(String documentName);
 
 }

@@ -29,36 +29,36 @@ import lombok.Setter;
 
 public class ComplianceDeadline
 
-		extends BaseEntity {
+    extends BaseEntity {
 
 // ========================================
 // PRIMARY KEY
 // ========================================
 
-	@Id
+  @Id
 
-	@Column(name = "deadline_id", nullable = false)
+  @Column(name = "deadline_id", nullable = false)
 
-	private UUID deadlineId;
+  private UUID deadlineId;
 
 // ========================================
 // REFERENCES
 // ========================================
 
-	@Column(name = "compliance_id", nullable = false)
+  @Column(name = "compliance_id", nullable = false)
 
-	private UUID complianceId;
+  private UUID complianceId;
 
 // ========================================
 // DATES
 // ========================================
 
-	@Column(name = "due_date")
+  @Column(name = "due_date")
 
-	private LocalDate dueDate;
+  private LocalDate dueDate;
 
-	@Column(name = "reminder_date")
+  @Column(name = "reminder_date")
 
-	private LocalDate reminderDate;
+  private LocalDate reminderDate;
 
 }

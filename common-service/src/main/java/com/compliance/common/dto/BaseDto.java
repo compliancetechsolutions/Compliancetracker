@@ -8,18 +8,18 @@ import lombok.Data;
 @Data
 public abstract class BaseDto {
 
-	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	protected LocalDateTime createdAt;
+  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+  @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+  protected LocalDateTime createdAt;
 
-	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	protected LocalDateTime updatedAt;
+  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+  @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+  protected LocalDateTime updatedAt;
 
-	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	protected String createdBy;
+  @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+  protected String createdBy;
 
-	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	protected String updatedBy;
+  @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+  protected String updatedBy;
 
 }

@@ -35,63 +35,63 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ComplianceController {
 
-	private final ComplianceService complianceService;
+  private final ComplianceService complianceService;
 
-	// =====================================================
-	// CREATE
-	// =====================================================
+  // =====================================================
+  // CREATE
+  // =====================================================
 
-	@PostMapping
-	public ResponseEntity<ComplianceResponse> create(@Valid @RequestBody ComplianceRequest request) {
-		log.info("[API] POST /compliance entityId={}", request.getEntityId());
-		return ResponseEntity.status(HttpStatus.CREATED).body(complianceService.create(request));
-	}
+  @PostMapping
+  public ResponseEntity<ComplianceResponse> create(@Valid @RequestBody ComplianceRequest request) {
+    log.info("[API] POST /compliance entityId={}", request.getEntityId());
+    return ResponseEntity.status(HttpStatus.CREATED).body(complianceService.create(request));
+  }
 
-	// =====================================================
-	// READ
-	// =====================================================
+  // =====================================================
+  // READ
+  // =====================================================
 
-	@GetMapping("/{id}")
-	public ResponseEntity<ComplianceResponse> getById(@PathVariable UUID id) {
-		return ResponseEntity.ok(complianceService.getById(id));
-	}
+  @GetMapping("/{id}")
+  public ResponseEntity<ComplianceResponse> getById(@PathVariable UUID id) {
+    return ResponseEntity.ok(complianceService.getById(id));
+  }
 
-	@GetMapping
-	public ResponseEntity<Page<ComplianceResponse>> getAll(@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "20") int size, @RequestParam(defaultValue = "dueDate") String sort,
-			@RequestParam(defaultValue = "DESC") String dir) {
+  @GetMapping
+  public ResponseEntity<Page<ComplianceResponse>> getAll(@RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size, @RequestParam(defaultValue = "dueDate") String sort,
+      @RequestParam(defaultValue = "DESC") String dir) {
 
-		Sort.Direction direction = Sort.Direction.fromOptionalString(dir).orElse(Sort.Direction.DESC);
-		PageRequest pageable = PageRequest.of(page, size, Sort.by(direction, sort));
-		return ResponseEntity.ok(complianceService.getAll(pageable));
-	}
+    Sort.Direction direction = Sort.Direction.fromOptionalString(dir).orElse(Sort.Direction.DESC);
+    PageRequest pageable = PageRequest.of(page, size, Sort.by(direction, sort));
+    return ResponseEntity.ok(complianceService.getAll(pageable));
+  }
 
-	// =====================================================
-	// UPDATE
-	// =====================================================
+  // =====================================================
+  // UPDATE
+  // =====================================================
 
-	@PutMapping("/{id}")
-	public ResponseEntity<ComplianceResponse> update(@PathVariable UUID id,
-			@Valid @RequestBody ComplianceRequest request) {
-		return ResponseEntity.ok(complianceService.update(id, request));
-	}
+  @PutMapping("/{id}")
+  public ResponseEntity<ComplianceResponse> update(@PathVariable UUID id,
+      @Valid @RequestBody ComplianceRequest request) {
+    return ResponseEntity.ok(complianceService.update(id, request));
+  }
 
-	// =====================================================
-	// DELETE
-	// =====================================================
+  // =====================================================
+  // DELETE
+  // =====================================================
 
-	@DeleteMapping("/{id}")
-	public ResponseEntity<Void> delete(@PathVariable UUID id) {
-		complianceService.delete(id);
-		return ResponseEntity.noContent().build();
-	}
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    complianceService.delete(id);
+    return ResponseEntity.noContent().build();
+  }
 
-	// =====================================================
-	// RULE EXECUTION
-	// =====================================================
+  // =====================================================
+  // RULE EXECUTION
+  // =====================================================
 
-	@PostMapping("/{id}/execute-rules")
-	public ResponseEntity<ComplianceResponse> executeRules(@PathVariable UUID id) {
-		return ResponseEntity.ok(complianceService.executeRules(id));
-	}
+  @PostMapping("/{id}/execute-rules")
+  public ResponseEntity<ComplianceResponse> executeRules(@PathVariable UUID id) {
+    return ResponseEntity.ok(complianceService.executeRules(id));
+  }
 }

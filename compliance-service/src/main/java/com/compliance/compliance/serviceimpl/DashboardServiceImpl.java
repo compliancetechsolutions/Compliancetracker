@@ -18,19 +18,22 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Dashboard aggregation service.
  *
- * <p><b>FIXES over original:</b>
+ * <p>
+ * <b>FIXES over original:</b>
  * <ol>
- *   <li><b>Builder method name mismatch fixed</b> — original called
- *       {@code .totalCompliance()} etc. but the DTO had {@code totalCompliances} (plural).
- *       DashboardResponse now uses singular names matching these call sites.</li>
- *   <li><b>getOverdueCompliance()</b> — original called
- *       {@code findOverdueEntityIds(today).stream().count()} which loads all UUIDs
- *       into memory just to count them. Fixed to use
- *       {@code countByDueDateBeforeAndStatus()} via a repository count query.</li>
- *   <li><b>getEntityComplianceCount()</b> — original called
- *       {@code findByEntityId().stream().count()} loading all records. Fixed to use
- *       {@code countByEntityId(entityId)} — single COUNT SQL query.</li>
- *   <li><b>generatedAt timestamp</b> — added so callers know when the snapshot was taken.</li>
+ * <li><b>Builder method name mismatch fixed</b> — original called
+ * {@code .totalCompliance()} etc. but the DTO had {@code totalCompliances}
+ * (plural). DashboardResponse now uses singular names matching these call
+ * sites.</li>
+ * <li><b>getOverdueCompliance()</b> — original called
+ * {@code findOverdueEntityIds(today).stream().count()} which loads all UUIDs
+ * into memory just to count them. Fixed to use
+ * {@code countByDueDateBeforeAndStatus()} via a repository count query.</li>
+ * <li><b>getEntityComplianceCount()</b> — original called
+ * {@code findByEntityId().stream().count()} loading all records. Fixed to use
+ * {@code countByEntityId(entityId)} — single COUNT SQL query.</li>
+ * <li><b>generatedAt timestamp</b> — added so callers know when the snapshot
+ * was taken.</li>
  * </ol>
  */
 @Slf4j
@@ -39,112 +42,107 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
 
-    private final ComplianceRepository complianceRepository;
+  private final ComplianceRepository complianceRepository;
 
-    // =====================================================
-    // DASHBOARD
-    // =====================================================
+  // =====================================================
+  // DASHBOARD
+  // =====================================================
 
-    @Override
-    public DashboardResponse getDashboard() {
-        return DashboardResponse.builder()
-                .totalCompliance(getTotalCompliance())
-                .completedCompliance(getCompletedCompliance())
-                .pendingCompliance(getPendingCompliance())
-                .overdueCompliance(getOverdueCompliance())
-                .reviewPending(getReviewPendingCount())
-                .completionRate(getCompletionRate())
-                .generatedAt(LocalDateTime.now())
-                .build();
+  @Override
+  public DashboardResponse getDashboard() {
+    return DashboardResponse.builder().totalCompliance(getTotalCompliance())
+        .completedCompliance(getCompletedCompliance()).pendingCompliance(getPendingCompliance())
+        .overdueCompliance(getOverdueCompliance()).reviewPending(getReviewPendingCount())
+        .completionRate(getCompletionRate()).generatedAt(LocalDateTime.now()).build();
+  }
+
+  @Override
+  public DashboardResponse getDashboard(DashboardRequest request) {
+    DashboardResponse response = getDashboard();
+
+    if (request == null)
+      return response;
+
+    if (request.getEntityId() != null) {
+      response.setEntityId(request.getEntityId());
+      response.setEntityCompliance(getEntityComplianceCount(request.getEntityId()));
     }
 
-    @Override
-    public DashboardResponse getDashboard(DashboardRequest request) {
-        DashboardResponse response = getDashboard();
-
-        if (request == null) return response;
-
-        if (request.getEntityId() != null) {
-            response.setEntityId(request.getEntityId());
-            response.setEntityCompliance(getEntityComplianceCount(request.getEntityId()));
-        }
-
-        if (request.getDeadlineDate() != null) {
-            response.setUpcomingDeadline(getUpcomingDeadlineCount(request.getDeadlineDate()));
-        }
-
-        return response;
+    if (request.getDeadlineDate() != null) {
+      response.setUpcomingDeadline(getUpcomingDeadlineCount(request.getDeadlineDate()));
     }
 
-    // =====================================================
-    // COMPLIANCE COUNTS
-    // =====================================================
+    return response;
+  }
 
-    @Override
-    public Long getTotalCompliance() {
-        return complianceRepository.count();
-    }
+  // =====================================================
+  // COMPLIANCE COUNTS
+  // =====================================================
 
-    @Override
-    public Long getCompletedCompliance() {
-        return complianceRepository.countByStatus("COMPLETED");
-    }
+  @Override
+  public Long getTotalCompliance() {
+    return complianceRepository.count();
+  }
 
-    @Override
-    public Long getPendingCompliance() {
-        return complianceRepository.countByStatus("PENDING");
-    }
+  @Override
+  public Long getCompletedCompliance() {
+    return complianceRepository.countByStatus("COMPLETED");
+  }
 
-    /**
-     * FIX: Use a COUNT DB query instead of loading all UUID objects into memory.
-     */
-    @Override
-    public Long getOverdueCompliance() {
-        return complianceRepository.countByDueDateBeforeAndStatus(LocalDate.now(), "PENDING")
-             + complianceRepository.countByStatus("OVERDUE");
-    }
+  @Override
+  public Long getPendingCompliance() {
+    return complianceRepository.countByStatus("PENDING");
+  }
 
-    // =====================================================
-    // ENTITY
-    // =====================================================
+  /**
+   * FIX: Use a COUNT DB query instead of loading all UUID objects into memory.
+   */
+  @Override
+  public Long getOverdueCompliance() {
+    return complianceRepository.countByDueDateBeforeAndStatus(LocalDate.now(), "PENDING")
+        + complianceRepository.countByStatus("OVERDUE");
+  }
 
-    /**
-     * FIX: Single COUNT query, no in-memory streaming.
-     */
-    @Override
-    public Long getEntityComplianceCount(UUID entityId) {
-        return complianceRepository.countByEntityId(entityId);
-    }
+  // =====================================================
+  // ENTITY
+  // =====================================================
 
-    // =====================================================
-    // DEADLINES
-    // =====================================================
+  /**
+   * FIX: Single COUNT query, no in-memory streaming.
+   */
+  @Override
+  public Long getEntityComplianceCount(UUID entityId) {
+    return complianceRepository.countByEntityId(entityId);
+  }
 
-    @Override
-    public Long getUpcomingDeadlineCount(LocalDate date) {
-        return (long) complianceRepository
-                .findUpcomingDeadlines(LocalDate.now(), date)
-                .size();
-    }
+  // =====================================================
+  // DEADLINES
+  // =====================================================
 
-    // =====================================================
-    // REVIEW
-    // =====================================================
+  @Override
+  public Long getUpcomingDeadlineCount(LocalDate date) {
+    return (long) complianceRepository.findUpcomingDeadlines(LocalDate.now(), date).size();
+  }
 
-    @Override
-    public Long getReviewPendingCount() {
-        return complianceRepository.countByStatus("UNDER_REVIEW");
-    }
+  // =====================================================
+  // REVIEW
+  // =====================================================
 
-    // =====================================================
-    // KPI
-    // =====================================================
+  @Override
+  public Long getReviewPendingCount() {
+    return complianceRepository.countByStatus("UNDER_REVIEW");
+  }
 
-    @Override
-    public Double getCompletionRate() {
-        long total = getTotalCompliance();
-        if (total == 0) return 0.0;
-        long completed = getCompletedCompliance();
-        return Math.round(((completed * 100.0) / total) * 100.0) / 100.0;
-    }
+  // =====================================================
+  // KPI
+  // =====================================================
+
+  @Override
+  public Double getCompletionRate() {
+    long total = getTotalCompliance();
+    if (total == 0)
+      return 0.0;
+    long completed = getCompletedCompliance();
+    return Math.round(((completed * 100.0) / total) * 100.0) / 100.0;
+  }
 }

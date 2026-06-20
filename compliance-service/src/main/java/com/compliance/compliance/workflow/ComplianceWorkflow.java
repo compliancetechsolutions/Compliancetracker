@@ -5,6 +5,6 @@ import com.compliance.compliance.event.WorkflowTaskEvent;
 
 public interface ComplianceWorkflow {
 
-	void execute(WorkflowTaskEvent event);
+  void execute(WorkflowTaskEvent event);
 
 }

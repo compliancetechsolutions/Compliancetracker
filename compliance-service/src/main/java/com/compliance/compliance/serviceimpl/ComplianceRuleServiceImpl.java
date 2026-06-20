@@ -55,259 +55,259 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class ComplianceRuleServiceImpl implements ComplianceRuleService {
 
-	private final RuleRepository ruleRepository;
-	private final ComplianceRepository complianceRepository;
+  private final RuleRepository ruleRepository;
+  private final ComplianceRepository complianceRepository;
 
-	/**
-	 * Thread-safe Drools knowledge base. KieBase is created once at startup and
-	 * shared across threads (it is immutable). KieSession is created per call from
-	 * this base.
-	 */
-	private final KieBase kieBase;
+  /**
+   * Thread-safe Drools knowledge base. KieBase is created once at startup and
+   * shared across threads (it is immutable). KieSession is created per call from
+   * this base.
+   */
+  private final KieBase kieBase;
 
-	// =====================================================
-	// CRUD
-	// =====================================================
+  // =====================================================
+  // CRUD
+  // =====================================================
 
-	@Override
-	public ComplianceRule create(ComplianceRule rule) {
-		rule.setActive(true);
-		return ruleRepository.save(rule);
-	}
+  @Override
+  public ComplianceRule create(ComplianceRule rule) {
+    rule.setActive(true);
+    return ruleRepository.save(rule);
+  }
 
-	@Override
-	public ComplianceRule update(UUID ruleId, ComplianceRule request) {
-		ComplianceRule rule = getById(ruleId);
-		rule.setRuleName(request.getRuleName());
-		rule.setRuleCondition(request.getRuleCondition());
-		rule.setActive(request.getActive());
-		rule.setMandatory(request.getMandatory());
-		return ruleRepository.save(rule);
-	}
+  @Override
+  public ComplianceRule update(UUID ruleId, ComplianceRule request) {
+    ComplianceRule rule = getById(ruleId);
+    rule.setRuleName(request.getRuleName());
+    rule.setRuleCondition(request.getRuleCondition());
+    rule.setActive(request.getActive());
+    rule.setMandatory(request.getMandatory());
+    return ruleRepository.save(rule);
+  }
 
-	@Override
-	@Transactional(readOnly = true)
-	public ComplianceRule getById(UUID ruleId) {
-		return ruleRepository.findById(ruleId).orElseThrow(() -> new RuntimeException("Rule not found: " + ruleId));
-	}
+  @Override
+  @Transactional(readOnly = true)
+  public ComplianceRule getById(UUID ruleId) {
+    return ruleRepository.findById(ruleId).orElseThrow(() -> new RuntimeException("Rule not found: " + ruleId));
+  }
 
-	@Override
-	@Transactional(readOnly = true)
-	public List<ComplianceRule> getAll() {
-		return ruleRepository.findAll();
-	}
+  @Override
+  @Transactional(readOnly = true)
+  public List<ComplianceRule> getAll() {
+    return ruleRepository.findAll();
+  }
 
-	@Override
-	@Transactional(readOnly = true)
-	public List<ComplianceRule> getActiveRules() {
-		return ruleRepository.findByActiveTrue();
-	}
+  @Override
+  @Transactional(readOnly = true)
+  public List<ComplianceRule> getActiveRules() {
+    return ruleRepository.findByActiveTrue();
+  }
 
-	@Override
-	@Transactional(readOnly = true)
-	public List<ComplianceRule> getByEntityType(String entityType) {
-		return ruleRepository.findByEntityType(entityType);
-	}
+  @Override
+  @Transactional(readOnly = true)
+  public List<ComplianceRule> getByEntityType(String entityType) {
+    return ruleRepository.findByEntityType(entityType);
+  }
 
-	@Override
-	@Transactional(readOnly = true)
-	public List<ComplianceRule> getByCountry(String countryCode) {
-		return ruleRepository.findByCountryCode(countryCode);
-	}
+  @Override
+  @Transactional(readOnly = true)
+  public List<ComplianceRule> getByCountry(String countryCode) {
+    return ruleRepository.findByCountryCode(countryCode);
+  }
 
-	@Override
-	public void delete(UUID ruleId) {
-		ruleRepository.deleteById(ruleId);
-	}
+  @Override
+  public void delete(UUID ruleId) {
+    ruleRepository.deleteById(ruleId);
+  }
 
-	// =====================================================
-	// SINGLE RULE EXECUTION
-	// =====================================================
+  // =====================================================
+  // SINGLE RULE EXECUTION
+  // =====================================================
 
-	/**
-	 * Execute one rule against a compliance record.
-	 *
-	 * <p>
-	 * <b>FIX:</b> Creates a fresh {@code KieSession} per call and disposes it in a
-	 * finally block — original reused the singleton session (not thread-safe).
-	 */
-	@Override
-	public RuleResultDto executeRule(UUID complianceId, UUID ruleId) {
-		long start = System.currentTimeMillis();
-		ComplianceRule rule = getById(ruleId);
+  /**
+   * Execute one rule against a compliance record.
+   *
+   * <p>
+   * <b>FIX:</b> Creates a fresh {@code KieSession} per call and disposes it in a
+   * finally block — original reused the singleton session (not thread-safe).
+   */
+  @Override
+  public RuleResultDto executeRule(UUID complianceId, UUID ruleId) {
+    long start = System.currentTimeMillis();
+    ComplianceRule rule = getById(ruleId);
 
-		KieSession session = kieBase.newKieSession();
-		try {
-			RuleResult result = new RuleResult();
-			session.insert(rule);
-			session.insert(result);
-			int fired = session.fireAllRules();
+    KieSession session = kieBase.newKieSession();
+    try {
+      RuleResult result = new RuleResult();
+      session.insert(rule);
+      session.insert(result);
+      int fired = session.fireAllRules();
 
-			return RuleResultDto.builder().complianceId(complianceId).ruleId(ruleId).success(fired > 0)
-					.compliant(result.isPassed()).ruleName(result.getRuleName()).ruleResult(result.getMessage())
-					.firedRuleCount(fired).executionTimeMs(System.currentTimeMillis() - start)
-					.executedAt(LocalDateTime.now()).build();
+      return RuleResultDto.builder().complianceId(complianceId).ruleId(ruleId).success(fired > 0)
+          .compliant(result.isPassed()).ruleName(result.getRuleName()).ruleResult(result.getMessage())
+          .firedRuleCount(fired).executionTimeMs(System.currentTimeMillis() - start)
+          .executedAt(LocalDateTime.now()).build();
 
-		} finally {
-			session.dispose(); // critical — releases working memory
-		}
-	}
+    } finally {
+      session.dispose(); // critical — releases working memory
+    }
+  }
 
-	// =====================================================
-	// ALL RULES EXECUTION
-	// =====================================================
+  // =====================================================
+  // ALL RULES EXECUTION
+  // =====================================================
 
-	/**
-	 * Execute all active rules against the given compliance record.
-	 *
-	 * <p>
-	 * <b>FIX:</b> Original returned {@code Collections.emptyList()}
-	 * unconditionally. Now fetches the compliance record, inserts all active rules
-	 * as facts, fires all rules, and collects per-rule results.
-	 */
-	@Override
-	public List<RuleResultDto> executeAllRules(UUID complianceId) {
-		long start = System.currentTimeMillis();
-		log.info("[RULES] executeAllRules | complianceId={}", complianceId);
+  /**
+   * Execute all active rules against the given compliance record.
+   *
+   * <p>
+   * <b>FIX:</b> Original returned {@code Collections.emptyList()}
+   * unconditionally. Now fetches the compliance record, inserts all active rules
+   * as facts, fires all rules, and collects per-rule results.
+   */
+  @Override
+  public List<RuleResultDto> executeAllRules(UUID complianceId) {
+    long start = System.currentTimeMillis();
+    log.info("[RULES] executeAllRules | complianceId={}", complianceId);
 
-		List<ComplianceRule> activeRules = ruleRepository.findByActiveTrue();
-		if (activeRules.isEmpty()) {
-			log.info("[RULES] No active rules to execute for complianceId={}", complianceId);
-			return Collections.emptyList();
-		}
+    List<ComplianceRule> activeRules = ruleRepository.findByActiveTrue();
+    if (activeRules.isEmpty()) {
+      log.info("[RULES] No active rules to execute for complianceId={}", complianceId);
+      return Collections.emptyList();
+    }
 
-		ComplianceRecord record = complianceRepository.findById(complianceId).orElse(null);
+    ComplianceRecord record = complianceRepository.findById(complianceId).orElse(null);
 
-		KieSession session = kieBase.newKieSession();
-		List<RuleResultDto> results = new ArrayList<>();
+    KieSession session = kieBase.newKieSession();
+    List<RuleResultDto> results = new ArrayList<>();
 
-		try {
-			// Insert compliance context
-			if (record != null)
-				session.insert(record);
+    try {
+      // Insert compliance context
+      if (record != null)
+        session.insert(record);
 
-			// Insert each rule + a result holder
-			for (ComplianceRule rule : activeRules) {
-				RuleResult result = new RuleResult();
-				session.insert(rule);
-				session.insert(result);
+      // Insert each rule + a result holder
+      for (ComplianceRule rule : activeRules) {
+        RuleResult result = new RuleResult();
+        session.insert(rule);
+        session.insert(result);
 
-				int fired = session.fireAllRules();
+        int fired = session.fireAllRules();
 
-				results.add(RuleResultDto.builder().complianceId(complianceId).ruleId(rule.getRuleId())
-						.success(fired > 0).compliant(result.isPassed())
-						.ruleName(rule.getRuleName() != null ? rule.getRuleName() : result.getRuleName())
-						.ruleResult(result.getMessage()).firedRuleCount(fired)
-						.executionTimeMs(System.currentTimeMillis() - start).executedAt(LocalDateTime.now()).build());
-			}
+        results.add(RuleResultDto.builder().complianceId(complianceId).ruleId(rule.getRuleId())
+            .success(fired > 0).compliant(result.isPassed())
+            .ruleName(rule.getRuleName() != null ? rule.getRuleName() : result.getRuleName())
+            .ruleResult(result.getMessage()).firedRuleCount(fired)
+            .executionTimeMs(System.currentTimeMillis() - start).executedAt(LocalDateTime.now()).build());
+      }
 
-			log.info("[RULES] executeAllRules complete | complianceId={} rulesRun={} elapsed={}ms", complianceId,
-					results.size(), System.currentTimeMillis() - start);
-			return results;
+      log.info("[RULES] executeAllRules complete | complianceId={} rulesRun={} elapsed={}ms", complianceId,
+          results.size(), System.currentTimeMillis() - start);
+      return results;
 
-		} finally {
-			session.dispose();
-		}
-	}
+    } finally {
+      session.dispose();
+    }
+  }
 
-	// =====================================================
-	// AGENDA-BASED EXECUTION
-	// =====================================================
+  // =====================================================
+  // AGENDA-BASED EXECUTION
+  // =====================================================
 
-	/**
-	 * Run all agenda groups in one session.
-	 *
-	 * <p>
-	 * <b>FIX:</b> Original created a new session per agenda group call but never
-	 * disposed any of them (memory leak). Now runs all agenda groups in a single
-	 * session and disposes once.
-	 */
-	@Override
-	public void reloadRules() {
-		log.info("[RULES] reloadRules — executing all agenda groups");
-		KieSession session = kieBase.newKieSession();
-		try {
-			fireAgendaGroup(session, "monthly");
-			fireAgendaGroup(session, "quarterly");
-			fireAgendaGroup(session, "yearly");
-			fireAgendaGroup(session, "reminder");
-			fireAgendaGroup(session, "overdue");
-		} finally {
-			session.dispose();
-		}
-	}
+  /**
+   * Run all agenda groups in one session.
+   *
+   * <p>
+   * <b>FIX:</b> Original created a new session per agenda group call but never
+   * disposed any of them (memory leak). Now runs all agenda groups in a single
+   * session and disposes once.
+   */
+  @Override
+  public void reloadRules() {
+    log.info("[RULES] reloadRules — executing all agenda groups");
+    KieSession session = kieBase.newKieSession();
+    try {
+      fireAgendaGroup(session, "monthly");
+      fireAgendaGroup(session, "quarterly");
+      fireAgendaGroup(session, "yearly");
+      fireAgendaGroup(session, "reminder");
+      fireAgendaGroup(session, "overdue");
+    } finally {
+      session.dispose();
+    }
+  }
 
-	@Override
-	public void executeMonthlyRules() {
-		executeAgenda("monthly");
-	}
+  @Override
+  public void executeMonthlyRules() {
+    executeAgenda("monthly");
+  }
 
-	@Override
-	public void executeQuarterlyRules() {
-		executeAgenda("quarterly");
-	}
+  @Override
+  public void executeQuarterlyRules() {
+    executeAgenda("quarterly");
+  }
 
-	@Override
-	public void executeYearlyRules() {
-		executeAgenda("yearly");
-	}
+  @Override
+  public void executeYearlyRules() {
+    executeAgenda("yearly");
+  }
 
-	@Override
-	public void executeReminderRules() {
-		executeAgenda("reminder");
-	}
+  @Override
+  public void executeReminderRules() {
+    executeAgenda("reminder");
+  }
 
-	@Override
-	public void executeOverdueRules() {
-		executeAgenda("overdue");
-	}
+  @Override
+  public void executeOverdueRules() {
+    executeAgenda("overdue");
+  }
 
-	// =====================================================
-	// VALIDATION / STATUS
-	// =====================================================
+  // =====================================================
+  // VALIDATION / STATUS
+  // =====================================================
 
-	@Override
-	public boolean validateRule(ComplianceRule rule) {
-		return rule != null && Boolean.TRUE.equals(rule.getActive());
-	}
+  @Override
+  public boolean validateRule(ComplianceRule rule) {
+    return rule != null && Boolean.TRUE.equals(rule.getActive());
+  }
 
-	@Override
-	public void activate(UUID ruleId) {
-		ComplianceRule rule = getById(ruleId);
-		rule.setActive(true);
-		ruleRepository.save(rule);
-	}
+  @Override
+  public void activate(UUID ruleId) {
+    ComplianceRule rule = getById(ruleId);
+    rule.setActive(true);
+    ruleRepository.save(rule);
+  }
 
-	@Override
-	public void deactivate(UUID ruleId) {
-		ComplianceRule rule = getById(ruleId);
-		rule.setActive(false);
-		ruleRepository.save(rule);
-	}
+  @Override
+  public void deactivate(UUID ruleId) {
+    ComplianceRule rule = getById(ruleId);
+    rule.setActive(false);
+    ruleRepository.save(rule);
+  }
 
-	// =====================================================
-	// PRIVATE HELPERS
-	// =====================================================
+  // =====================================================
+  // PRIVATE HELPERS
+  // =====================================================
 
-	/** Execute a single agenda group in its own session. */
-	private void executeAgenda(String agenda) {
-		log.info("[RULES] Executing agenda group: {}", agenda);
-		KieSession session = kieBase.newKieSession();
-		try {
-			fireAgendaGroup(session, agenda);
-		} finally {
-			session.dispose();
-		}
-	}
+  /** Execute a single agenda group in its own session. */
+  private void executeAgenda(String agenda) {
+    log.info("[RULES] Executing agenda group: {}", agenda);
+    KieSession session = kieBase.newKieSession();
+    try {
+      fireAgendaGroup(session, agenda);
+    } finally {
+      session.dispose();
+    }
+  }
 
-	/** Set focus on an agenda group and fire all rules. */
-	private void fireAgendaGroup(KieSession session, String agenda) {
-		try {
-			session.getAgenda().getAgendaGroup(agenda).setFocus();
-			int fired = session.fireAllRules();
-			log.debug("[RULES] Agenda '{}' fired {} rules", agenda, fired);
-		} catch (Exception ex) {
-			log.error("[RULES] Agenda '{}' execution failed: {}", agenda, ex.getMessage(), ex);
-		}
-	}
+  /** Set focus on an agenda group and fire all rules. */
+  private void fireAgendaGroup(KieSession session, String agenda) {
+    try {
+      session.getAgenda().getAgendaGroup(agenda).setFocus();
+      int fired = session.fireAllRules();
+      log.debug("[RULES] Agenda '{}' fired {} rules", agenda, fired);
+    } catch (Exception ex) {
+      log.error("[RULES] Agenda '{}' execution failed: {}", agenda, ex.getMessage(), ex);
+    }
+  }
 }

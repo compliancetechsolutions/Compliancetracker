@@ -1,10 +1,15 @@
 package com.compliance.common.kafka.event;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,26 +17,13 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 /**
+ * 
  * Base class for all Kafka domain events.
  *
- * <p><b>CRITICAL FIX — JPA annotations removed:</b>
- * The original had {@code @MappedSuperclass}, {@code @Id}, and {@code @Column}
- * from {@code jakarta.persistence} on this class. These annotations are for
- * JPA entities (database rows). A Kafka event is a plain POJO that is JSON-
- * serialised over the wire — it is never mapped to a database table directly.
- * Having {@code @MappedSuperclass} caused Spring to attempt registering this
- * as a JPA entity hierarchy, producing Hibernate bootstrap errors and confusion
- * in classpath scanning.
+ * Shared across: * auth-service * entity-service * compliance-service *
+ * notification-service * investor-service * initiator-service
  *
- * <p><b>What is kept:</b>
- * <ul>
- *   <li>{@code @SuperBuilder} / {@code @NoArgsConstructor} / {@code @AllArgsConstructor}
- *       — required for Lombok builder inheritance in subclasses.</li>
- *   <li>{@code @JsonIgnoreProperties(ignoreUnknown = true)} — consumer tolerance:
- *       older producers may not send every field; we must not fail deserialization.</li>
- *   <li>{@code eventId} — used for idempotency deduplication in Redis.</li>
- *   <li>{@code timestamp} / {@code createdAt} — for observability and ordering.</li>
- * </ul>
+ * NOTE: This is NOT a JPA entity.
  */
 @Getter
 @Setter
@@ -39,41 +31,97 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public abstract class BaseEvent {
+@MappedSuperclass
+public abstract class BaseEvent implements Serializable {
 
-    // =====================================================
-    // IDENTITY
-    // =====================================================
+  private static final long serialVersionUID = 1L;
 
-    /** Unique event ID — used as Redis deduplication key (TTL 24h). */
-    private UUID eventId;
+  // =====================================================
+  // IDENTITY
+  // =====================================================
 
-    /** Domain event type string, e.g. "COMPLIANCE_CREATED". */
-    private String eventType;
+  /**
+   * 
+   * Unique event ID.
+   */
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
-    /** ID of the domain aggregate this event belongs to. */
-    private UUID aggregateId;
+  /**
+   * 
+   * Example: USER_CREATED ENTITY_CREATED
+   */
+  private String eventType;
 
-    /** Name of the publishing micro-service. */
-    private String serviceName;
+  /**
+   * 
+   * Aggregate identifier.
+   */
+  private UUID aggregateId;
 
-    // =====================================================
-    // RETRY / STATUS
-    // =====================================================
+  /**
+   * 
+   * Publishing service.
+   */
+  private String serviceName;
 
-    protected Integer retryCount;
+  /**
+   * 
+   * Event schema version.
+   */
+  private Integer version = 1;
 
-    protected String status;
+  /**
+   * 
+   * Distributed tracing.
+   */
+  private String correlationId;
 
-    // =====================================================
-    // TIMESTAMPS
-    // =====================================================
+  // =====================================================
+  // RETRY / STATUS
+  // =====================================================
 
-    /** When the business event occurred. */
-    protected LocalDateTime timestamp;
+  protected Integer retryCount = 0;
 
-    /** When this event object was created (may differ from timestamp). */
-    protected LocalDateTime createdAt;
+  protected String status = "NEW";
 
-    protected LocalDateTime updatedAt;
+  // =====================================================
+  // TIMESTAMPS
+  // =====================================================
+
+  /**
+   * 
+   * Business event timestamp.
+   */
+  protected LocalDateTime timestamp = LocalDateTime.now();
+
+  /**
+   * 
+   * Event creation timestamp.
+   */
+  protected LocalDateTime createdAt = LocalDateTime.now();
+
+  /**
+   * 
+   * Last modification timestamp.
+   */
+  protected LocalDateTime updatedAt;
+
+  public UUID getEventId() {
+
+    return id;
+
+  }
+
+  public void setEventId(
+
+      UUID eventId
+
+  ) {
+
+    this.id = eventId;
+
+  }
+
 }

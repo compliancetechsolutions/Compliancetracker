@@ -9,16 +9,16 @@ import com.compliance.common.enums.ErrorCode;
  */
 public class UnauthorizedException extends BaseException {
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1885329855953712856L;
+  /**
+   * 
+   */
+  private static final long serialVersionUID = 1885329855953712856L;
 
-	public UnauthorizedException(BaseErrorCode errorCode) {
-		super(errorCode);
-	}
+  public UnauthorizedException(BaseErrorCode errorCode) {
+    super(errorCode);
+  }
 
-	public UnauthorizedException(BaseErrorCode errorCode, String detail) {
-		super(errorCode, detail);
-	}
+  public UnauthorizedException(BaseErrorCode errorCode, String detail) {
+    super(errorCode, detail);
+  }
 }

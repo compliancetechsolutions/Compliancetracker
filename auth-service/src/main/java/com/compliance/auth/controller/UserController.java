@@ -49,170 +49,170 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class UserController extends BaseController {
 
-	private final UserService userService;
+  private final UserService userService;
 
-	// =====================================================
-	// CREATE
-	// =====================================================
+  // =====================================================
+  // CREATE
+  // =====================================================
 
-	@Operation(summary = "Create a new user account", description = "Admin only")
-	@PostMapping
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<UserResponseDto>> createUser(@Valid @RequestBody CreateUserRequestDto request) {
+  @Operation(summary = "Create a new user account", description = "Admin only")
+  @PostMapping
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<UserResponseDto>> createUser(@Valid @RequestBody CreateUserRequestDto request) {
 
-		log.info("CREATE USER HIT");
+    log.info("CREATE USER HIT");
 
-		UserResponseDto created = userService.create(request);
+    UserResponseDto created = userService.create(request);
 
-		return created("User created successfully", created);
-	}
+    return created("User created successfully", created);
+  }
 
-	@PostMapping("/bulk")
-	public ResponseEntity<BulkUserCreateResponseDto> createBulkUsers(@RequestBody BulkCreateUserRequestDto request) {
+  @PostMapping("/bulk")
+  public ResponseEntity<BulkUserCreateResponseDto> createBulkUsers(@RequestBody BulkCreateUserRequestDto request) {
 
-		return ResponseEntity.ok(userService.createBulkUsers(request));
-	}
+    return ResponseEntity.ok(userService.createBulkUsers(request));
+  }
 
-	// =====================================================
-	// READ ALL
-	// =====================================================
+  // =====================================================
+  // READ ALL
+  // =====================================================
 
-	@Operation(summary = "List all users (paginated)", description = "Admin only")
-	//@GetMapping
-	@PostMapping("/users/search")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<Page<UserResponseDto>>> getAllUsers(
+  @Operation(summary = "List all users (paginated)", description = "Admin only")
+  //@GetMapping
+  @PostMapping("/users/search")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<Page<UserResponseDto>>> getAllUsers(
 
-			@RequestBody PaginationRequestDto request) {
-		
-		
-		 Sort sort = Sort.unsorted();
+      @RequestBody PaginationRequestDto request) {
+    
+    
+     Sort sort = Sort.unsorted();
 
-		 if (request.getSort() != null &&
-		            !request.getSort().isEmpty()) {
+     if (request.getSort() != null &&
+                !request.getSort().isEmpty()) {
 
-		        String[] parts =
-		                request.getSort().get(0).split(",");
+            String[] parts =
+                    request.getSort().get(0).split(",");
 
-		        sort = Sort.by(
+            sort = Sort.by(
 
-		                Sort.Direction.fromString(parts[1]),
-		                parts[0]
-		        );
-		    }
+                    Sort.Direction.fromString(parts[1]),
+                    parts[0]
+            );
+        }
 
-		    Pageable pageable = PageRequest.of(
+        Pageable pageable = PageRequest.of(
 
-		    		request.getPage(),
-		            request.getSize(),
-		            sort
-		    );
+            request.getPage(),
+                request.getSize(),
+                sort
+        );
 
-		    return ok(userService.getAll(pageable));
-	}
+        return ok(userService.getAll(pageable));
+  }
 
-	// =====================================================
-	// READ BY ID
-	// =====================================================
+  // =====================================================
+  // READ BY ID
+  // =====================================================
 
-	@Operation(summary = "Get user by ID")
-	@GetMapping("/{id}")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<UserResponseDto>> getUserById(@PathVariable UUID id) {
+  @Operation(summary = "Get user by ID")
+  @GetMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<UserResponseDto>> getUserById(@PathVariable UUID id) {
 
-		UserResponseDto user = userService.getById(id)
-				.orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, id));
+    UserResponseDto user = userService.getById(id)
+        .orElseThrow(() -> new ResourceNotFoundException(UserErrorCode.USER_NOT_FOUND, id));
 
-		return ok(user);
-	}
+    return ok(user);
+  }
 
-	// =====================================================
-	// READ BY USERNAME
-	// =====================================================
+  // =====================================================
+  // READ BY USERNAME
+  // =====================================================
 
-	@Operation(summary = "Get user by username", description = "Admin only")
-	@GetMapping("/by-username/{username}")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<UserResponseDto>> getUserByUsername(@PathVariable String username) {
+  @Operation(summary = "Get user by username", description = "Admin only")
+  @GetMapping("/by-username/{username}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<UserResponseDto>> getUserByUsername(@PathVariable String username) {
 
-		return ok(userService.getUserByUsername(username));
-	}
+    return ok(userService.getUserByUsername(username));
+  }
 
-	// =====================================================
-	// UPDATE
-	// =====================================================
+  // =====================================================
+  // UPDATE
+  // =====================================================
 
-	@Operation(summary = "Update user profile")
-	@PutMapping("/{id}")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<UserResponseDto>> updateUser(@PathVariable UUID id,
+  @Operation(summary = "Update user profile")
+  @PutMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<UserResponseDto>> updateUser(@PathVariable UUID id,
 
-			@Valid @RequestBody UpdateUserRequestDto request) {
+      @Valid @RequestBody UpdateUserRequestDto request) {
 
-		return ok("User updated successfully",
+    return ok("User updated successfully",
 
-				userService.update(id, request));
-	}
+        userService.update(id, request));
+  }
 
-	// =====================================================
-	// DELETE
-	// =====================================================
+  // =====================================================
+  // DELETE
+  // =====================================================
 
-	@Operation(summary = "Soft-delete a user", description = "Admin only")
-	@DeleteMapping("/{id}")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable UUID id) {
+  @Operation(summary = "Soft-delete a user", description = "Admin only")
+  @DeleteMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable UUID id) {
 
-		userService.delete(id);
+    userService.delete(id);
 
-		return ok("User deleted successfully");
-	}
+    return ok("User deleted successfully");
+  }
 
-	// =====================================================
-	// ROLES
-	// =====================================================
+  // =====================================================
+  // ROLES
+  // =====================================================
 
-	@Operation(summary = "Get roles assigned to user", description = "Admin only")
-	@GetMapping("/{id}/roles")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<List<String>>> getUserRoles(@PathVariable UUID id) {
+  @Operation(summary = "Get roles assigned to user", description = "Admin only")
+  @GetMapping("/{id}/roles")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<List<String>>> getUserRoles(@PathVariable UUID id) {
 
-		return ok(userService.getUserRoles(id));
-	}
+    return ok(userService.getUserRoles(id));
+  }
 
-	@Operation(summary = "Assign one role", description = "Admin only")
-	@PostMapping("/{id}/roles")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<Void>> assignRole(@PathVariable UUID id,
+  @Operation(summary = "Assign one role", description = "Admin only")
+  @PostMapping("/{id}/roles")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<Void>> assignRole(@PathVariable UUID id,
 
-			@RequestParam String roleName) {
+      @RequestParam String roleName) {
 
-		userService.assignRoleToUser(id, roleName);
+    userService.assignRoleToUser(id, roleName);
 
-		return ok("Role assigned successfully");
-	}
+    return ok("Role assigned successfully");
+  }
 
-	@Operation(summary = "Assign multiple roles", description = "Admin only")
-	@PostMapping("/{id}/roles/bulk")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<RoleAssignmentResultDto>> assignRoles(@PathVariable UUID id,
+  @Operation(summary = "Assign multiple roles", description = "Admin only")
+  @PostMapping("/{id}/roles/bulk")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<RoleAssignmentResultDto>> assignRoles(@PathVariable UUID id,
 
-			@RequestBody List<String> roles) {
+      @RequestBody List<String> roles) {
 
-		RoleAssignmentResultDto result = userService.assignRolesToUser(id, roles);
+    RoleAssignmentResultDto result = userService.assignRolesToUser(id, roles);
 
-		return ok("Roles processed successfully", result);
-	}
+    return ok("Roles processed successfully", result);
+  }
 
-	@Operation(summary = "Remove role", description = "Admin only")
-	@DeleteMapping("/{id}/roles")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<Void>> removeRole(@PathVariable UUID id,
+  @Operation(summary = "Remove role", description = "Admin only")
+  @DeleteMapping("/{id}/roles")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<Void>> removeRole(@PathVariable UUID id,
 
-			@RequestParam String roleName) {
+      @RequestParam String roleName) {
 
-		userService.removeRoleFromUser(id, roleName);
+    userService.removeRoleFromUser(id, roleName);
 
-		return ok("Role removed successfully");
-	}
+    return ok("Role removed successfully");
+  }
 }

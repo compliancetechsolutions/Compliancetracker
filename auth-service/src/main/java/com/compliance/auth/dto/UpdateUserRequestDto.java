@@ -11,10 +11,10 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class UpdateUserRequestDto extends BaseDto {
 
-	private String email;
-	private String status;
-	private Set<String> roles;
-	private String firstName;   
+  private String email;
+  private String status;
+  private Set<String> roles;
+  private String firstName;   
     private String lastName;    
     private String password;
 

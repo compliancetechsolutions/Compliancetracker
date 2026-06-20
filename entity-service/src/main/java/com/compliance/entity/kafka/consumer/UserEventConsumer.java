@@ -1,15 +1,24 @@
 package com.compliance.entity.kafka.consumer;
 
 import org.springframework.kafka.annotation.KafkaListener;
+
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
+
 import org.springframework.messaging.handler.annotation.Header;
+
 import org.springframework.stereotype.Service;
 
 import com.compliance.common.enums.KafkaErrorCode;
+
+import com.compliance.common.kafka.constants.KafkaTopics;
+
 import com.compliance.common.kafka.event.UserEvent;
+
 import com.compliance.entity.kafka.service.EntityEventService;
 
 import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -17,37 +26,53 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class UserEventConsumer {
 
-	// =====================================================
-	// EVENT SERVICE
-	// =====================================================
-
 	private final EntityEventService entityEventService;
 
-	// =====================================================
-	// CONSUME USER EVENTS
-	// =====================================================
+	@KafkaListener(topics = KafkaTopics.USER_EVENTS,
 
-	@KafkaListener(topics = "user-events", groupId = "entity-service-group", containerFactory = "userKafkaListenerContainerFactory")
+			groupId = "entity-service-group",
+
+			containerFactory = "userKafkaListenerContainerFactory")
 	public void consumeUserEvent(
 
 			UserEvent event,
+
+			Acknowledgment ack,
 
 			@Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
 
 			@Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
 
-			@Header(KafkaHeaders.OFFSET) long offset) {
+			@Header(KafkaHeaders.OFFSET) long offset
+
+	) {
 
 		try {
 
-			log.info("Kafka message consumed topic={} partition={} offset={} eventType={}", topic, partition, offset,
+			if (event == null) {
+
+				ack.acknowledge();
+
+				return;
+			}
+
+			log.info(
+
+					"Kafka consumed topic={} partition={} offset={} type={}",
+
+					topic,
+
+					partition,
+
+					offset,
+
 					event.getEventType());
 
-			// =================================================
-			// EVENT ROUTING
-			// =================================================
+			switch (
 
-			switch (event.getEventType()) {
+			event.getEventType()
+
+			) {
 
 			case "USER_CREATED":
 
@@ -69,13 +94,27 @@ public class UserEventConsumer {
 
 			default:
 
-				log.warn("Unknown event type : {}", event.getEventType());
+				log.warn("Unknown event type {}", event.getEventType());
 			}
 
-		} catch (Exception ex) {
+			// COMMIT OFFSET ONLY AFTER SUCCESS
+			ack.acknowledge();
 
-			log.error(KafkaErrorCode.KAFKA_CONSUMER_FAILED.getMessage(), ex);
+		}
 
+		catch (
+
+		Exception ex
+
+		) {
+
+			log.error(
+
+					KafkaErrorCode.KAFKA_CONSUMER_FAILED.getMessage(),
+
+					ex);
+
+			// no ack -> retry -> DLT
 			throw ex;
 		}
 	}

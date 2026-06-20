@@ -6,72 +6,72 @@ public enum UserEventType {
 // USER
 // =====================================================
 
-	CREATE_USER,
+  CREATE_USER,
 
-	UPDATE_USER,
+  UPDATE_USER,
 
-	DELETE_USER,
+  DELETE_USER,
 
 // =====================================================
 // BULK
 // =====================================================
 
-	BULK_CREATE_USERS,
+  BULK_CREATE_USERS,
 
 // =====================================================
 // ROLE
 // =====================================================
 
-	ADD_ROLE,
+  ADD_ROLE,
 
-	ADD_MULTIPLE_ROLES,
+  ADD_MULTIPLE_ROLES,
 
-	REMOVE_ROLE,
+  REMOVE_ROLE,
 
 // =====================================================
 // PASSWORD
 // =====================================================
 
-	RESET_PASSWORD,
+  RESET_PASSWORD,
 
 // =====================================================
 // STATUS
 // =====================================================
 
-	ACTIVATE_USER,
+  ACTIVATE_USER,
 
-	DEACTIVATE_USER;
+  DEACTIVATE_USER;
 
-	public boolean isRoleOperation() {
+  public boolean isRoleOperation() {
 
-		return
+    return
 
-		this == ADD_ROLE
+    this == ADD_ROLE
 
-				||
+        ||
 
-				this == ADD_MULTIPLE_ROLES
+        this == ADD_MULTIPLE_ROLES
 
-				||
+        ||
 
-				this == REMOVE_ROLE;
+        this == REMOVE_ROLE;
 
-	}
+  }
 
-	public boolean isUserLifecycle() {
+  public boolean isUserLifecycle() {
 
-		return
+    return
 
-		this == CREATE_USER
+    this == CREATE_USER
 
-				||
+        ||
 
-				this == UPDATE_USER
+        this == UPDATE_USER
 
-				||
+        ||
 
-				this == DELETE_USER;
+        this == DELETE_USER;
 
-	}
+  }
 
 }

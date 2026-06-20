@@ -16,166 +16,166 @@ import com.compliance.common.kafka.event.UserEventType;
 
 public class AuthClient {
 
-	@KafkaListener(
+  @KafkaListener(
 
-			topics = "${app.kafka.topics.user-events}",
+      topics = "${app.kafka.topics.user-events}",
 
-			groupId = "compliance-group"
+      groupId = "compliance-group"
 
-	)
+  )
 
-	public void consume(
+  public void consume(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		if (event == null ||
+    if (event == null ||
 
-				event.getEventType() == null) {
+        event.getEventType() == null) {
 
-			return;
+      return;
 
-		}
+    }
 
-		switch (
+    switch (
 
-		event.getEventType()
+    event.getEventType()
 
-		) {
+    ) {
 
-		case UserEventType.CREATE_USER:
+    case UserEventType.CREATE_USER:
 
-			handleCreate(event);
+      handleCreate(event);
 
-			break;
+      break;
 
-		case UserEventType.UPDATE_USER:
+    case UserEventType.UPDATE_USER:
 
-			handleUpdate(event);
+      handleUpdate(event);
 
-			break;
+      break;
 
-		case UserEventType.DELETE_USER:
+    case UserEventType.DELETE_USER:
 
-			handleDelete(event);
+      handleDelete(event);
 
-			break;
+      break;
 
-		case UserEventType.RESET_PASSWORD:
+    case UserEventType.RESET_PASSWORD:
 
-			handleReset(event);
+      handleReset(event);
 
-			break;
+      break;
 
-		case UserEventType.ACTIVATE_USER:
+    case UserEventType.ACTIVATE_USER:
 
-		case UserEventType.DEACTIVATE_USER:
+    case UserEventType.DEACTIVATE_USER:
 
-			handleStatus(event);
+      handleStatus(event);
 
-			break;
+      break;
 
-		case UserEventType.ADD_ROLE:
+    case UserEventType.ADD_ROLE:
 
-		case UserEventType.ADD_MULTIPLE_ROLES:
+    case UserEventType.ADD_MULTIPLE_ROLES:
 
-		case UserEventType.REMOVE_ROLE:
+    case UserEventType.REMOVE_ROLE:
 
-			handleRole(event);
+      handleRole(event);
 
-			break;
+      break;
 
-		case UserEventType.BULK_CREATE_USERS:
+    case UserEventType.BULK_CREATE_USERS:
 
-			handleBulk(event);
+      handleBulk(event);
 
-			break;
+      break;
 
-		default:
+    default:
 
-			log.warn(
+      log.warn(
 
-					"Unsupported event {}",
+          "Unsupported event {}",
 
-					event.getEventType()
+          event.getEventType()
 
-			);
+      );
 
-		}
+    }
 
-	}
+  }
 
 // =====================================
 
-	private void handleCreate(
+  private void handleCreate(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Create {}", event.getUserId());
+    log.info("Create {}", event.getUserId());
 
-	}
+  }
 
-	private void handleUpdate(
+  private void handleUpdate(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Update {}", event.getUserId());
+    log.info("Update {}", event.getUserId());
 
-	}
+  }
 
-	private void handleDelete(
+  private void handleDelete(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Delete {}", event.getUserId());
+    log.info("Delete {}", event.getUserId());
 
-	}
+  }
 
-	private void handleReset(
+  private void handleReset(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Reset {}", event.getUserId());
+    log.info("Reset {}", event.getUserId());
 
-	}
+  }
 
-	private void handleStatus(
+  private void handleStatus(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Status {}", event.getStatus());
+    log.info("Status {}", event.getStatus());
 
-	}
+  }
 
-	private void handleRole(
+  private void handleRole(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Roles {}", event.getRoles());
+    log.info("Roles {}", event.getRoles());
 
-	}
+  }
 
-	private void handleBulk(
+  private void handleBulk(
 
-			UserEvent event
+      UserEvent event
 
-	) {
+  ) {
 
-		log.info("Bulk {}", event.getTotalUsers());
+    log.info("Bulk {}", event.getTotalUsers());
 
-	}
+  }
 
 }

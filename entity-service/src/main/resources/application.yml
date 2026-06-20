@@ -1,34 +1,41 @@
 server:
   port: ${SERVER_PORT:8082}
-
   shutdown: graceful
-
   compression:
     enabled: true
-
     mime-types:
       - application/json
-
   http2:
     enabled: true
+
+# =======================================================
+# APP
+# =======================================================
+
+app:
+  kafka:
+    topics:
+      user-events: user-events
+      investor-entity-events: investor-entity-event
+      representative-entity-events: representative-entity-event
+      compliance-created: compliance-created
+      notification-events: notification-events
+      entity-events: entity-events
+
 
 # =======================================================
 # SPRING
 # =======================================================
 
 spring:
-
   application:
     name: entity-service
 
   web:
-
     resources:
-
       add-mappings: false
 
   lifecycle:
-
     timeout-per-shutdown-phase: 30s
 
 # =======================================================
@@ -36,29 +43,17 @@ spring:
 # =======================================================
 
   datasource:
-
     url: ${DB_URL:jdbc:postgresql://localhost:5433/compliance}
-
     username: ${DB_USERNAME:postgres}
-
     password: ${DB_PASSWORD:localpassword}
-
     hikari:
-
       pool-name: entity-pool
-
       maximum-pool-size: 10
-
       minimum-idle: 2
-
       idle-timeout: 30000
-
       connection-timeout: 20000
-
       max-lifetime: 1800000
-
       leak-detection-threshold: 60000
-
       auto-commit: false
 
 # =======================================================
@@ -66,49 +61,32 @@ spring:
 # =======================================================
 
   jpa:
-
     hibernate:
-
       ddl-auto: validate
-
     show-sql: false
-
     open-in-view: false
-
     properties:
-
       hibernate:
-
         format_sql: false
-
         default_schema: entity_schema
-
         default_batch_fetch_size: 100
-
-        jdbc:
-
-          batch_size: 20
-
         order_inserts: true
-
         order_updates: true
+        jdbc:
+          batch_size: 20
+          time_zone: UTC
 
 # =======================================================
 # FLYWAY
 # =======================================================
 
   flyway:
-
     enabled: true
-
     locations:
-      classpath:db/migration
-
+      - classpath:db/migration
     schemas:
       - entity_schema
-
     default-schema: entity_schema
-
     baseline-on-migrate: true
 
 # =======================================================
@@ -116,51 +94,33 @@ spring:
 # =======================================================
 
   kafka:
-
-    bootstrap-servers:
-      ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-
-# ===================================================
-# CONSUMER
-# ===================================================
-
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      auto-create: false
     consumer:
-
-      group-id:
-        entity-service-group
-
-# ===================================================
-# PRODUCER
-# ===================================================
-
-    producer:
-
-      retries: 5
-
-      acks: all
-
-      batch-size: 32768
-
-      compression-type: snappy
-
-      key-serializer:
-        org.apache.kafka.common.serialization.StringSerializer
-
-      value-serializer:
-        org.springframework.kafka.support.serializer.JsonSerializer
-
+      group-id: entity-service-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.compliance.common.kafka.event.UserEvent
+        spring.json.use.type.headers: false
+    producer:
+      retries: 5
+      acks: all
+      batch-size: 32768
+      compression-type: snappy
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
         enable.idempotence: true
-
         linger.ms: 10
-
-# ===================================================
-# LISTENER
-# ===================================================
-
+        max.in.flight.requests.per.connection: 5
     listener:
-
+      concurrency: 3
+      ack-mode: manual_immediate
       missing-topics-fatal: false
 
 # =======================================================
@@ -168,9 +128,7 @@ spring:
 # =======================================================
 
   jackson:
-
     serialization:
-
       write-dates-as-timestamps: false
 
 # =======================================================
@@ -178,81 +136,42 @@ spring:
 # =======================================================
 
 jwt:
-
-  secret:
-    ${JWT_SECRET:change-me}
+  secret: ${JWT_SECRET:change-me}
 
 # =======================================================
 # EUREKA
 # =======================================================
 
-eureka:
 
-  client:
-
-    service-url:
-
-      defaultZone:
-        ${EUREKA_URL:http://localhost:8761/eureka}
-
-    registry-fetch-interval-seconds: 10
-
-    initial-instance-info-replication-interval-seconds: 5
-
-  instance:
-
-    prefer-ip-address: true
-
-    lease-renewal-interval-in-seconds: 10
-
-    lease-expiration-duration-in-seconds: 30
 
 # =======================================================
 # ACTUATOR
 # =======================================================
 
 management:
-
   endpoints:
-
     web:
-
       exposure:
-
         include:
           - health
           - prometheus
           - startup
-
   endpoint:
-
     health:
-
       show-details: always
-
       probes:
-
         enabled: true
-
+    env:
+      show-values: never
   health:
-
     kafka:
-
       enabled: true
-
   tracing:
-
     sampling:
-
-      probability:
-        ${TRACE_SAMPLING:0.1}
-
+      probability: ${TRACE_SAMPLING:0.1}
   prometheus:
-
     metrics:
-
       export:
-
         enabled: true
 
 # =======================================================
@@ -260,23 +179,17 @@ management:
 # =======================================================
 
 logging:
-
   level:
-
-    com.compliance:
-      ${LOG_LEVEL:INFO}
-
-    org.springframework.security:
-      WARN
-
-    org.apache.kafka:
-      WARN
-
+    com.compliance: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+    org.apache.kafka: WARN
+    org.springframework.kafka.listener: INFO
   pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
-    console:
-
-      "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
+# =======================================================
+# DOCKER PROFILE
+# =======================================================
 
 # =======================================================
 # DOCKER PROFILE
@@ -285,34 +198,19 @@ logging:
 ---
 
 spring:
-
   config:
-
     activate:
-
-      on-profile:
-        docker
+      on-profile: docker
 
   datasource:
-
-    url:
-      jdbc:postgresql://postgres:5432/compliance
+    url: jdbc:postgresql://postgres:5432/compliance
 
   kafka:
+    bootstrap-servers: kafka:9092
 
-    bootstrap-servers:
-      kafka:9092
 
 eureka:
-
   client:
-
     service-url:
-
-      defaultZone:
-        http://eureka:8761/eureka
-
-    registry-fetch-interval-seconds: 10
-
-    initial-instance-info-replication-interval-seconds: 5
-
+      defaultZone: http://eureka:8761/eureka
+  

@@ -32,6 +32,11 @@ extends BaseEvent {
 // REFERENCES
 // ======================================
 
+/**
+   * 
+   */
+  private static final long serialVersionUID = 1L;
+
 private UUID complianceId;
 
 private UUID entityId;

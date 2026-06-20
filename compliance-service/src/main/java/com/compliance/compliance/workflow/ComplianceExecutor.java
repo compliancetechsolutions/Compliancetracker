@@ -13,14 +13,14 @@ import com.compliance.compliance.event.WorkflowTaskEvent;
 
 public class ComplianceExecutor
 
-		implements ComplianceWorkflow {
+    implements ComplianceWorkflow {
 
-	@Override
+  @Override
 
-	public void execute(WorkflowTaskEvent event) {
+  public void execute(WorkflowTaskEvent event) {
 
-		log.info("Executing workflow {}", event.getWorkflowId());
+    log.info("Executing workflow {}", event.getWorkflowId());
 
-	}
+  }
 
 }

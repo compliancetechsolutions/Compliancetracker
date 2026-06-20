@@ -32,140 +32,140 @@ import java.util.Objects;
 
 public final class UserContext {
 
-	private UserContext() {
-	}
+  private UserContext() {
+  }
 
-	// ── User ID ──────────────────────────────────────────────────────────────
+  // ── User ID ──────────────────────────────────────────────────────────────
 
-	public static UUID getUserId() {
-		return getAuthentication().map(Authentication::getName).map(UserContext::parseUuid)
-				.orElseThrow(() -> new IllegalStateException("No authenticated user found in security context"));
-	}
+  public static UUID getUserId() {
+    return getAuthentication().map(Authentication::getName).map(UserContext::parseUuid)
+        .orElseThrow(() -> new IllegalStateException("No authenticated user found in security context"));
+  }
 
-	// ── Username (from credential slot populated by filter) ──────────────────
+  // ── Username (from credential slot populated by filter) ──────────────────
 
-	public static String getUsername() {
-		return getAuthentication().map(auth -> {
-			Object creds = auth.getCredentials();
-			return creds instanceof String s ? s : auth.getName();
-		}).orElseThrow(() -> new IllegalStateException("No username in security context"));
-	}
+  public static String getUsername() {
+    return getAuthentication().map(auth -> {
+      Object creds = auth.getCredentials();
+      return creds instanceof String s ? s : auth.getName();
+    }).orElseThrow(() -> new IllegalStateException("No username in security context"));
+  }
 
-	// ── Primary role ─────────────────────────────────────────────────────────
+  // ── Primary role ─────────────────────────────────────────────────────────
 
-	public static Role getRole() {
-		return getAuthentication().map(Authentication::getAuthorities).flatMap(UserContext::extractPrimaryRole)
-				.orElseThrow(() -> new IllegalStateException("No role in security context"));
-	}
+  public static Role getRole() {
+    return getAuthentication().map(Authentication::getAuthorities).flatMap(UserContext::extractPrimaryRole)
+        .orElseThrow(() -> new IllegalStateException("No role in security context"));
+  }
 
-	/** All roles assigned to the current user. */
+  /** All roles assigned to the current user. */
 
-	public static List<Role> getRoles() {
-		return getAuthentication().map(Authentication::getAuthorities).stream().flatMap(Collection::stream)
-				.map(GrantedAuthority::getAuthority).map(r -> r.replace("ROLE_", "")).map(r -> {
-					try {
-						return Role.valueOf(r);
-					} catch (IllegalArgumentException e) {
-						return null;
-					}
-				}).filter(r -> r != null).toList();
-	}
+  public static List<Role> getRoles() {
+    return getAuthentication().map(Authentication::getAuthorities).stream().flatMap(Collection::stream)
+        .map(GrantedAuthority::getAuthority).map(r -> r.replace("ROLE_", "")).map(r -> {
+          try {
+            return Role.valueOf(r);
+          } catch (IllegalArgumentException e) {
+            return null;
+          }
+        }).filter(r -> r != null).toList();
+  }
 
-	/** Convenience: returns true if user has the given role or higher. */
-	public static boolean hasMinimumRole(Role required) {
+  /** Convenience: returns true if user has the given role or higher. */
+  public static boolean hasMinimumRole(Role required) {
 
-		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-		if (auth == null) {
+    if (auth == null) {
 
-			System.out.println("AUTH IS NULL");
+      System.out.println("AUTH IS NULL");
 
-			return false;
-		}
+      return false;
+    }
 
-		System.out.println("Required Role = " + required);
+    System.out.println("Required Role = " + required);
 
-		auth.getAuthorities().forEach(a -> System.out.println("Authority = " + a.getAuthority()));
+    auth.getAuthorities().forEach(a -> System.out.println("Authority = " + a.getAuthority()));
 
-		return auth.getAuthorities().stream()
+    return auth.getAuthorities().stream()
 
-				.map(GrantedAuthority::getAuthority)
+        .map(GrantedAuthority::getAuthority)
 
-				.map(role -> role.replace("ROLE_", ""))
+        .map(role -> role.replace("ROLE_", ""))
 
-				.filter(role -> !role.equals("ANONYMOUS"))
+        .filter(role -> !role.equals("ANONYMOUS"))
 
-				.map(role -> {
-					try {
-						return Role.valueOf(role);
-					} catch (Exception e) {
-						return null;
-					}
-				})
+        .map(role -> {
+          try {
+            return Role.valueOf(role);
+          } catch (Exception e) {
+            return null;
+          }
+        })
 
-				.filter(Objects::nonNull)
+        .filter(Objects::nonNull)
 
-				.anyMatch(role -> {
-					System.out.println("Parsed Role = " + role);
+        .anyMatch(role -> {
+          System.out.println("Parsed Role = " + role);
 
-					return role.hasAccess(required);
-				});
-	}
+          return role.hasAccess(required);
+        });
+  }
 
-	// ── Helpers
+  // ── Helpers
 
-	private static Optional<Authentication> getAuthentication() {
+  private static Optional<Authentication> getAuthentication() {
 
-	    Authentication auth =
-	            SecurityContextHolder.getContext()
-	                    .getAuthentication();
+      Authentication auth =
+              SecurityContextHolder.getContext()
+                      .getAuthentication();
 
-	    if (auth == null
-	            || !auth.isAuthenticated()) {
+      if (auth == null
+              || !auth.isAuthenticated()) {
 
-	        return Optional.empty();
-	    }
+          return Optional.empty();
+      }
 
-	    boolean anonymous =
-	            auth.getAuthorities().stream()
+      boolean anonymous =
+              auth.getAuthorities().stream()
 
-	                    .map(GrantedAuthority::getAuthority)
+                      .map(GrantedAuthority::getAuthority)
 
-	                    .anyMatch("ROLE_ANONYMOUS"::equals);
+                      .anyMatch("ROLE_ANONYMOUS"::equals);
 
-	    return anonymous
-	            ? Optional.empty()
-	            : Optional.of(auth);
-	}
-	private static UUID parseUuid(String value) {
-		try {
-			return UUID.fromString(value);
-		} catch (IllegalArgumentException e) {
-			throw new IllegalStateException("Invalid UUID in authentication principal: " + value, e);
-		}
-	}
+      return anonymous
+              ? Optional.empty()
+              : Optional.of(auth);
+  }
+  private static UUID parseUuid(String value) {
+    try {
+      return UUID.fromString(value);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalStateException("Invalid UUID in authentication principal: " + value, e);
+    }
+  }
 
-	private static Optional<Role> extractPrimaryRole(Collection<? extends GrantedAuthority> authorities) {
+  private static Optional<Role> extractPrimaryRole(Collection<? extends GrantedAuthority> authorities) {
 
-		return authorities.stream()
+    return authorities.stream()
 
-				.map(GrantedAuthority::getAuthority)
+        .map(GrantedAuthority::getAuthority)
 
-				.map(role -> role.replace("ROLE_", ""))
+        .map(role -> role.replace("ROLE_", ""))
 
-				// Ignore Spring anonymous role
-				.filter(role -> !role.equals("ANONYMOUS"))
+        // Ignore Spring anonymous role
+        .filter(role -> !role.equals("ANONYMOUS"))
 
-				.map(role -> {
-					try {
-						return Role.valueOf(role);
-					} catch (IllegalArgumentException e) {
-						return null;
-					}
-				})
+        .map(role -> {
+          try {
+            return Role.valueOf(role);
+          } catch (IllegalArgumentException e) {
+            return null;
+          }
+        })
 
-				.filter(Objects::nonNull)
+        .filter(Objects::nonNull)
 
-				.max(Comparator.comparingInt(Role::getLevel));
-	}
+        .max(Comparator.comparingInt(Role::getLevel));
+  }
 }

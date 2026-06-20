@@ -13,20 +13,20 @@ import com.compliance.compliance.entity.ComplianceWorkflowTask;
 
 public interface WorkflowRepository
 
-		extends
+    extends
 
-		BaseRepository<ComplianceWorkflowTask, UUID> {
+    BaseRepository<ComplianceWorkflowTask, UUID> {
 
-	List<ComplianceWorkflowTask>
+  List<ComplianceWorkflowTask>
 
-			findByComplianceId(
+      findByComplianceId(
 
-					UUID complianceId
+          UUID complianceId
 
-	);
+  );
 
-	List<ComplianceWorkflowTask> findByTaskStatus(String taskStatus);
+  List<ComplianceWorkflowTask> findByTaskStatus(String taskStatus);
 
-	List<ComplianceWorkflowTask> findByWorkflowId(String workflowId);
+  List<ComplianceWorkflowTask> findByWorkflowId(String workflowId);
 
 }

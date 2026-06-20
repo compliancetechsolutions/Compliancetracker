@@ -22,15 +22,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EntityLocation extends BaseEntity {
-	@Id
-	@Column(name = "location_id")
-	private UUID locationId;
+  @Id
+  @Column(name = "location_id")
+  private UUID locationId;
 
-	@Column(name = "entity_id")
-	private UUID entityId;
+  @Column(name = "entity_id")
+  private UUID entityId;
 
-	private String address;
-	private String city;
-	private String country;
+  private String address;
+  private String city;
+  private String country;
 
 }

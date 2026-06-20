@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.compliance.common.kafka.event.UserEvent;
 import com.compliance.common.service.BaseService;
 import com.compliance.entity.dto.BulkEntityRequest;
 import com.compliance.entity.dto.BulkEntityResponse;
@@ -16,15 +17,28 @@ import com.compliance.entity.dto.EntityUserMappingRequest;
 
 public interface EntityService extends BaseService<EntityRequest, EntityRequest, EntityResponse, UUID> {
 
-	// Current logged-in user
-	List<EntityResponse> getMyEntities();
-	void mapUser(UUID entityId, EntityUserMappingRequest request);
-	// Role-based views (user comes from UserContext)
-	Page<EntityResponse> getInvestorEntities(Pageable pageable);
-	Page<EntityResponse> getRepresentativeEntities(Pageable pageable);
-	void mapUsers(UUID entityId, EntityBulkUserMappingRequest request);
-	public BulkEntityResponse createEntities(
-	        BulkEntityRequest request);
-	
+  // Current logged-in user
+  List<EntityResponse> getMyEntities();
+  void mapUser(UUID entityId, EntityUserMappingRequest request);
+  // Role-based views (user comes from UserContext)
+  Page<EntityResponse> getInvestorEntities(Pageable pageable);
+  Page<EntityResponse> getRepresentativeEntities(Pageable pageable);
+  void mapUsers(UUID entityId, EntityBulkUserMappingRequest request);
+  public BulkEntityResponse createEntities(
+          BulkEntityRequest request);
+  
+  // ==========================================
+  // KAFKA
+  // ==========================================
 
-}
+  void createEntityFromUser(
+          UserEvent event
+  );
+
+  void removeUserMappings(
+          UUID userId
+  );
+
+  }
+  
+

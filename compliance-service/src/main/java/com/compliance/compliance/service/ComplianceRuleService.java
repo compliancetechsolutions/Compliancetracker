@@ -10,49 +10,49 @@ public interface ComplianceRuleService {
 // CREATE
 // ==========================================
 
-	ComplianceRule create(ComplianceRule rule);
+  ComplianceRule create(ComplianceRule rule);
 
 // ==========================================
 // UPDATE
 // ==========================================
 
-	ComplianceRule update(UUID ruleId,ComplianceRule rule);
+  ComplianceRule update(UUID ruleId,ComplianceRule rule);
 
 // ==========================================
 // GET
 // ==========================================
 
-	ComplianceRule getById(UUID ruleId);
-	List<ComplianceRule>getAll();
-	List<ComplianceRule>getActiveRules();
-	List<ComplianceRule>getByEntityType(String entityType);
-	List<ComplianceRule>getByCountry(String countryCode);
+  ComplianceRule getById(UUID ruleId);
+  List<ComplianceRule>getAll();
+  List<ComplianceRule>getActiveRules();
+  List<ComplianceRule>getByEntityType(String entityType);
+  List<ComplianceRule>getByCountry(String countryCode);
 
 // ==========================================
 // DELETE
 // ==========================================
 
-	void delete(UUID ruleId);
+  void delete(UUID ruleId);
 
 // ==========================================
 // RULE EXECUTION
 // ==========================================
 
-	RuleResultDto executeRule(UUID complianceId,UUID ruleId);
+  RuleResultDto executeRule(UUID complianceId,UUID ruleId);
 
-	List<RuleResultDto>	executeAllRules(UUID complianceId);
+  List<RuleResultDto>  executeAllRules(UUID complianceId);
 
 // ==========================================
 // DROOLS
 // ==========================================
 
-	void reloadRules();
-	void executeMonthlyRules();
-	void executeQuarterlyRules();
-	void executeYearlyRules();
-	void executeReminderRules();
-	void executeOverdueRules();
-	boolean validateRule(ComplianceRule rule);
+  void reloadRules();
+  void executeMonthlyRules();
+  void executeQuarterlyRules();
+  void executeYearlyRules();
+  void executeReminderRules();
+  void executeOverdueRules();
+  boolean validateRule(ComplianceRule rule);
 
 // ==========================================
 // STATUS

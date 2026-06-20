@@ -15,6 +15,6 @@ import com.compliance.compliance.entity.ComplianceActivity;
 
 public interface ActivityRepository extends BaseRepository<ComplianceActivity, UUID> {
 
-	List<ComplianceActivity> findByFrequency(String frequency);
+  List<ComplianceActivity> findByFrequency(String frequency);
 
 }

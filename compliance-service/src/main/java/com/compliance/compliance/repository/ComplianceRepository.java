@@ -32,76 +32,98 @@ import com.compliance.compliance.entity.ComplianceRecord;
 @Repository
 public interface ComplianceRepository extends JpaRepository<ComplianceRecord, UUID> {
 
-	// =====================================================
-	// BASIC FILTERS
-	// =====================================================
+  // =====================================================
+  // BASIC FILTERS
+  // =====================================================
 
-	List<ComplianceRecord> findByEntityId(UUID entityId);
+  List<ComplianceRecord> findByEntityId(UUID entityId);
 
-	List<ComplianceRecord> findByStatus(String status);
+  List<ComplianceRecord> findByStatus(String status);
 
-	// =====================================================
-	// OVERDUE — used by scheduler and notification service
-	// =====================================================
+  // =====================================================
+  // OVERDUE — used by scheduler and notification service
+  // =====================================================
 
-	/**
-	 * Return distinct entity IDs that have at least one compliance record with a
-	 * due date before {@code today} and status "PENDING" or "IN_PROGRESS".
-	 *
-	 * <p>
-	 * Used by
-	 * {@link com.compliance.compliance.serviceimpl.ComplianceServiceImpl#markOverdue()}
-	 * to collect targets for bulk overdue notification without loading full
-	 * records.
-	 */
-	@Query("""
-			SELECT DISTINCT c.entityId
-			FROM ComplianceRecord c
-			WHERE c.dueDate < :today
-			  AND c.status IN ('PENDING', 'IN_PROGRESS')
-			""")
-	List<UUID> findOverdueEntityIds(@Param("today") LocalDate today);
+  /**
+   * Return distinct entity IDs that have at least one compliance record with a
+   * due date before {@code today} and status "PENDING" or "IN_PROGRESS".
+   *
+   * <p>
+   * Used by
+   * {@link com.compliance.compliance.serviceimpl.ComplianceServiceImpl#markOverdue()}
+   * to collect targets for bulk overdue notification without loading full
+   * records.
+   */
+  @Query("""
+      SELECT DISTINCT c.entityId
+      FROM ComplianceRecord c
+      WHERE c.dueDate < :today
+        AND c.status IN ('PENDING', 'IN_PROGRESS')
+      """)
+  List<UUID> findOverdueEntityIds(@Param("today") LocalDate today);
 
-	/**
-	 * Bulk-update overdue records in a single SQL statement. Far more efficient
-	 * than loading records → setting status → saveAll() in Java.
-	 */
-	@Modifying
-	@Query("""
-			UPDATE ComplianceRecord c
-			SET c.status = 'OVERDUE'
-			WHERE c.dueDate < :today
-			  AND c.status IN ('PENDING', 'IN_PROGRESS')
-			""")
-	int bulkMarkOverdue(@Param("today") LocalDate today);
+  /**
+   * Distinct entity IDs for a given status, without loading full records.
+   * Used by executeDailyCompliance to avoid loading every OVERDUE record
+   * (potentially tens of millions of rows) just to extract entityId.
+   */
+  @Query("SELECT DISTINCT c.entityId FROM ComplianceRecord c WHERE c.status = :status")
+  List<UUID> findDistinctEntityIdsByStatus(@Param("status") String status);
 
-	// =====================================================
-	// STATISTICS
-	// =====================================================
+  // =====================================================
+  // IDEMPOTENCY — used by EntityEventConsumer/processEntity
+  // to avoid creating duplicate ENTITY_ONBOARDING records
+  // on Kafka redelivery / consumer-group offset reset.
+  // =====================================================
+  boolean existsByEntityIdAndComplianceType(UUID entityId, String complianceType);
 
-	Long countByStatus(String status);
+  /**
+   * Bulk-update overdue records in a single SQL statement. Far more efficient
+   * than loading records → setting status → saveAll() in Java.
+   */
+  @Modifying
+  @Query("""
+      UPDATE ComplianceRecord c
+      SET c.status = 'OVERDUE'
+      WHERE c.dueDate < :today
+        AND c.status IN ('PENDING', 'IN_PROGRESS')
+      """)
+  int bulkMarkOverdue(@Param("today") LocalDate today);
 
-	Long countByEntityIdAndStatus(UUID entityId, String status);
+  // =====================================================
+  // STATISTICS
+  // =====================================================
 
-	// =====================================================
-	// UPCOMING / DEADLINE
-	// =====================================================
+  Long countByStatus(String status);
 
-	/**
-	 * Return compliance records due within the next {@code days} days. Used by the
-	 * reminder scheduler to pre-fetch upcoming deadlines.
-	 */
-	@Query("""
-			SELECT c
-			FROM ComplianceRecord c
-			WHERE c.dueDate BETWEEN :from AND :to
-			  AND c.status = 'PENDING'
-			ORDER BY c.dueDate ASC
-			""")
-	List<ComplianceRecord> findUpcomingDeadlines(@Param("from") LocalDate from, @Param("to") LocalDate to);
+  Long countByEntityIdAndStatus(UUID entityId, String status);
 
-	Long countByEntityId(UUID entityId);
+  // =====================================================
+  // UPCOMING / DEADLINE
+  // =====================================================
 
-	Long countByDueDateBeforeAndStatus(LocalDate date, String status);
+  /**
+   * Return compliance records due within the next {@code days} days. Used by the
+   * reminder scheduler to pre-fetch upcoming deadlines.
+   */
+  @Query("""
+      SELECT c
+      FROM ComplianceRecord c
+      WHERE c.dueDate BETWEEN :from AND :to
+        AND c.status = 'PENDING'
+      ORDER BY c.dueDate ASC
+      """)
+  List<ComplianceRecord> findUpcomingDeadlines(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+  Long countByEntityId(UUID entityId);
+
+  Long countByDueDateBeforeAndStatus(LocalDate date, String status);
+
+  /**
+   * Bulk resolve entityIds for a set of complianceIds in one query.
+   * Replaces an N+1 findById() loop in sendReminder().
+   */
+  @Query("SELECT DISTINCT c.entityId FROM ComplianceRecord c WHERE c.complianceId IN :complianceIds")
+  List<UUID> findDistinctEntityIdsByIdIn(@Param("complianceIds") java.util.Collection<UUID> complianceIds);
 
 }

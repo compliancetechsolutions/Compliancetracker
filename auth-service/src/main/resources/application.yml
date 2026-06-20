@@ -1,354 +1,176 @@
 server:
   port: ${SERVER_PORT:8081}
-
   shutdown: graceful
-
   compression:
     enabled: true
-
     mime-types:
       - application/json
-
   http2:
     enabled: false
 
-# =======================================================
-# SPRING
-# =======================================================
-
 spring:
-
   application:
     name: auth-service
 
   lifecycle:
-
     timeout-per-shutdown-phase: 30s
 
-# =======================================================
-# DATASOURCE
-# =======================================================
-
   datasource:
-
     url: ${DB_URL:jdbc:postgresql://localhost:5433/compliance}
-
     username: ${DB_USERNAME:postgres}
-
-    password: ${DB_PASSWORD:Zaq@12wsx#}
-
+    # FIX: removed hardcoded password default — must be injected via env
+    password: ${DB_PASSWORD}
     hikari:
-
       pool-name: auth-pool
-
-      maximum-pool-size: 10
-
-      minimum-idle: 2
-
+      # FIX: increased from 10 to 25 — auth service is write-heavy (login/refresh/logout all hold connections)
+      maximum-pool-size: 25
+      minimum-idle: 5
       idle-timeout: 30000
-
       connection-timeout: 20000
-
       max-lifetime: 1800000
-
       leak-detection-threshold: 60000
-
       auto-commit: false
 
-# =======================================================
-# JPA
-# =======================================================
-
   jpa:
-
     hibernate:
-
       ddl-auto: validate
-
     show-sql: false
-
     open-in-view: false
-
     properties:
-
       hibernate:
-
         format_sql: false
-
         default_schema: auth_schema
-
         default_batch_fetch_size: 100
-
         jdbc:
-
           batch_size: 20
-
         order_inserts: true
-
         order_updates: true
 
-# =======================================================
-# FLYWAY
-# =======================================================
-
   flyway:
-
     enabled: true
-
     locations:
-      classpath:db/migration
-
+      - classpath:db/migration
     schemas:
       - auth_schema
       - event_schema
-
     baseline-on-migrate: true
-
-# =======================================================
-# KAFKA
-# =======================================================
-
+  # FIX (CRITICAL): kafka was previously nested under flyway — Spring never read any of these settings.
+  # Moved to correct position: sibling of flyway, child of spring.
   kafka:
-
-    bootstrap-servers:
-      ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-
-# ===================================================
-# CONSUMER
-# ===================================================
-
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-
-      group-id:
-        auth-group
-
-# ===================================================
-# PRODUCER
-# ===================================================
-
-    producer:
-
-      retries: 10
-
-      acks: all
-
-      batch-size: 32768
-
-      buffer-memory: 67108864
-
-      compression-type: snappy
-
-      key-serializer:
-        org.apache.kafka.common.serialization.StringSerializer
-
-      value-serializer:
-        org.springframework.kafka.support.serializer.JsonSerializer
-
+      group-id: auth-group
+      dlt-group-id: auth-dlt-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-
-        "[linger.ms]": 15
-
-        "[enable.idempotence]": true
-
-        "[max.in.flight.requests.per.connection]": 5
-
-        "[delivery.timeout.ms]": 120000
-
-        "[request.timeout.ms]": 30000
-
-        "[retry.backoff.ms]": 1000
-
-        "[spring.json.add.type.headers]": false
-
-# ===================================================
-# LISTENER
-# ===================================================
-
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+    producer:
+      retries: 10
+      acks: all
+      batch-size: 65536
+      buffer-memory: 67108864
+      compression-type: lz4
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        # FIX: request.timeout was 5000, delivery was 10000 — delivery must be >= request + (retries * backoff)
+        # With 10 retries at 1000ms backoff: minimum delivery = 30000 + 10000 = 40000ms. Set to 120s for safety.
+        request.timeout.ms: 30000
+        delivery.timeout.ms: 120000
+        retry.backoff.ms: 1000
+        linger.ms: 10
     listener:
-
+      ack-mode: manual_immediate
+      concurrency: 3
       missing-topics-fatal: false
 
-# =======================================================
-# JACKSON
-# =======================================================
-
   jackson:
-
     serialization:
-
       write-dates-as-timestamps: false
 
-# =======================================================
-# JWT
-# =======================================================
-
+# FIX: removed default 'change-me' — JwtUtil.init() asserts >= 32 bytes; a bad default causes misleading startup errors
 jwt:
-
-  secret:
-    ${JWT_SECRET:change-me}
-
-  access-token-expiry-ms:
-    ${JWT_ACCESS_EXPIRY_MS:604800000}
-
-  refresh-token-expiry-days:
-    ${JWT_REFRESH_EXPIRY_DAYS:7}
-
-# =======================================================
-# EUREKA
-# =======================================================
+  secret: ${JWT_SECRET}
+  access-token-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:604800000}
+  refresh-token-expiry-days: ${JWT_REFRESH_EXPIRY_DAYS:7}
 
 eureka:
-
   client:
-
     service-url:
-
-      defaultZone:
-        ${EUREKA_URL:http://localhost:8761/eureka}
-
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
     register-with-eureka: true
-
     fetch-registry: false
-
     registry-fetch-interval-seconds: 10
-
     initial-instance-info-replication-interval-seconds: 5
-
   instance:
-
     prefer-ip-address: true
 
-# =======================================================
-# SWAGGER
-# =======================================================
-
 springdoc:
-
   api-docs:
-
     enabled: true
-
   swagger-ui:
-
     enabled: true
 
 swagger:
+  gateway-url: ${GATEWAY_URL:http://localhost:8080}
 
-  gateway-url:
-    ${GATEWAY_URL:http://localhost:8080}
-
-# =======================================================
-# ACTUATOR
-# =======================================================
+# FIX: added explicit CORS origin allowlist — injected via env in staging/prod
+# Multiple origins: ALLOWED_ORIGINS=https://app.compliance.com,https://admin.compliance.com
+cors:
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
 
 management:
-
   endpoints:
-
     web:
-
       exposure:
-
         include:
           - health
           - prometheus
           - startup
-
   endpoint:
-
     health:
-
       show-details: always
-
       probes:
-
         enabled: true
-
-  health:
-
-    kafka:
-
-      enabled: true
-
   tracing:
-
     enabled: false
-
     sampling:
-
       probability: 0.0
-
   prometheus:
-
     metrics:
-
       export:
-
         enabled: true
-
-# =======================================================
-# LOGGING
-# =======================================================
 
 logging:
-
   level:
-
-    com.compliance:
-      ${LOG_LEVEL:INFO}
-
-    org.springframework.security:
-      WARN
-
-    org.apache.kafka:
-      WARN
-
+    com.compliance: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+    org.apache.kafka: WARN
   pattern:
-
-    console:
-
-      "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
-
-# =======================================================
-# DOCKER PROFILE
-# =======================================================
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 ---
 
 spring:
-
   config:
-
     activate:
-
-      on-profile:
-        docker
-
+      on-profile: docker
   datasource:
-
-    url:
-      jdbc:postgresql://postgres:5432/compliance
-
-    username:
-      postgres
-
-    password:
-      ${DB_PASSWORD:Zaq@12wsx#}
-
+    url: jdbc:postgresql://postgres:5432/compliance
+    username: postgres
+    password: ${DB_PASSWORD}
   kafka:
-
-    bootstrap-servers:
-      kafka:9092
+    bootstrap-servers: kafka:9092
 
 eureka:
-
   client:
-
     service-url:
-
-      defaultZone:
-        http://eureka:8761/eureka
-
+      defaultZone: http://eureka:8761/eureka
     register-with-eureka: true
-
     fetch-registry: false

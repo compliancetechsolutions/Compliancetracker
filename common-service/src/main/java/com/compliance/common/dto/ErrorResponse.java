@@ -9,93 +9,116 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ErrorResponse {
 
-	private boolean success;
-	private String message;
-	private int status;
-	private String errorCode;
-	private List<String> details;
-	private String path;
+  private boolean success;
+  private String message;
+  private int status;
+  private String errorCode;
+  private List<String> details;
+  private String path;
+  private String traceId;
 
-	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-	private LocalDateTime timestamp;
+  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+  private LocalDateTime timestamp;
 
-	// ===== BUILDER =====
-	public static Builder builder() {
-		return new Builder();
-	}
+  // ===== BUILDER =====
+  public static Builder builder() {
+    return new Builder();
+  }
 
-	public static class Builder {
-		private final ErrorResponse response = new ErrorResponse();
+  public static class Builder {
+    private final ErrorResponse response = new ErrorResponse();
 
-		public Builder success(boolean success) {
-			response.success = success;
-			return this;
-		}
+    public Builder success(boolean success) {
+      response.success = success;
+      return this;
+    }
 
-		public Builder message(String message) {
-			response.message = message;
-			return this;
-		}
+    public Builder message(String message) {
+      response.message = message;
+      return this;
+    }
 
-		public Builder status(int status) {
-			response.status = status;
-			return this;
-		}
+    public Builder status(int status) {
+      response.status = status;
+      return this;
+    }
 
-		public Builder errorCode(String errorCode) {
-			response.errorCode = errorCode;
-			return this;
-		}
+    public Builder traceId(
 
-		public Builder details(List<String> details) {
-			response.details = details;
-			return this;
-		}
+        String traceId
 
-		public Builder path(String path) {
-			response.path = path;
-			return this;
-		}
+    ) {
 
-		public Builder timestamp(LocalDateTime timestamp) {
-			response.timestamp = timestamp;
-			return this;
-		}
+      response.traceId =
 
-		public ErrorResponse build() {
-			if (response.timestamp == null) {
-				response.timestamp = LocalDateTime.now();
-			}
-			return response;
-		}
-	}
+          traceId;
 
-	// ===== GETTERS =====
-	public boolean isSuccess() {
-		return success;
-	}
+      return this;
 
-	public String getMessage() {
-		return message;
-	}
+    }
 
-	public int getStatus() {
-		return status;
-	}
+    public Builder errorCode(String errorCode) {
+      response.errorCode = errorCode;
+      return this;
+    }
 
-	public String getErrorCode() {
-		return errorCode;
-	}
+    public Builder details(List<String> details) {
+      response.details = details;
+      return this;
+    }
 
-	public List<String> getDetails() {
-		return details;
-	}
+    public Builder path(String path) {
+      response.path = path;
+      return this;
+    }
 
-	public String getPath() {
-		return path;
-	}
+    public Builder timestamp(LocalDateTime timestamp) {
+      response.timestamp = timestamp;
+      return this;
+    }
 
-	public LocalDateTime getTimestamp() {
-		return timestamp;
-	}
+    public ErrorResponse build() {
+      if (response.timestamp == null) {
+        response.timestamp = LocalDateTime.now();
+      }
+      return response;
+    }
+  }
+
+  // ===== GETTERS =====
+  public boolean isSuccess() {
+    return success;
+  }
+
+  public String getMessage() {
+    return message;
+  }
+
+  public int getStatus() {
+    return status;
+  }
+
+  public String getErrorCode() {
+    return errorCode;
+  }
+
+  public List<String> getDetails() {
+    return details;
+  }
+
+  public String getPath() {
+    return path;
+  }
+
+  public LocalDateTime getTimestamp() {
+    return timestamp;
+  }
+
+//NEW
+  public String getTraceId() {
+
+    return traceId;
+
+  }
+
 }

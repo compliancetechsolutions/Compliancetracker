@@ -25,19 +25,19 @@ import lombok.NoArgsConstructor;
 @Builder
 public class EntityDocument extends BaseEntity {
 
-	 @Id
-	    @Column(name = "document_id")
-	    private UUID documentId;
+   @Id
+      @Column(name = "document_id")
+      private UUID documentId;
 
-	    @Column(name = "entity_id")
-	    private UUID entityId;
+      @Column(name = "entity_id")
+      private UUID entityId;
 
-	    @Column(name = "document_name")
-	    private String documentName;
+      @Column(name = "document_name")
+      private String documentName;
 
-	    @Column(name = "file_location")
-	    private String fileLocation;
+      @Column(name = "file_location")
+      private String fileLocation;
 
-	    @Column(name = "uploaded_at")
-	    private LocalDateTime uploadedAt;
+      @Column(name = "uploaded_at")
+      private LocalDateTime uploadedAt;
 }

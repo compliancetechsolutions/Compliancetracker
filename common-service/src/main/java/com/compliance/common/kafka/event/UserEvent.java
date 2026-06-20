@@ -23,92 +23,97 @@ import lombok.experimental.SuperBuilder;
 
 public class UserEvent
 
-		extends BaseEvent {
+    extends BaseEvent {
 
 // =====================================================
 // USER
 // =====================================================
 
-	private UUID userId;
+  /**
+       * 
+       */
+  private static final long serialVersionUID = 1L;
 
-	private String username;
+  private UUID userId;
 
-	private String email;
+  private String username;
 
-	private String firstName;
+  private String email;
 
-	private String lastName;
+  private String firstName;
 
-	private String status;
+  private String lastName;
+
+  private String status;
 
 // =====================================================
 // SECURITY
 // =====================================================
 
-	private Boolean passwordChanged;
+  private Boolean passwordChanged;
 
 // =====================================================
 // ROLES
 // =====================================================
 
-	private Set<String> roles;
+  private Set<String> roles;
 
 // =====================================================
 // BULK
 // =====================================================
 
-	private Integer totalUsers;
+  private Integer totalUsers;
 
-	private Integer successCount;
+  private Integer successCount;
 
-	private Integer failedCount;
+  private Integer failedCount;
 
 // =====================================================
 // AUDIT
 // =====================================================
 
-	private String performedBy;
+  private String performedBy;
 
-	private LocalDateTime actionTime;
+  private LocalDateTime actionTime;
 
 // =====================================================
 // EXTRA
 // =====================================================
 
-	private String remarks;
+  private String remarks;
 
 // =====================================================
 // HELPERS
 // =====================================================
 
-	public boolean isSuccessful() {
+  public boolean isSuccessful() {
 
-		return
+    return
 
-		successCount != null
+    successCount != null
 
-				&&
+        &&
 
-				failedCount != null
+        failedCount != null
 
-				&&
+        &&
 
-				failedCount == 0;
+        failedCount == 0;
 
-	}
+  }
 
-	public boolean isActive() {
+  public boolean isActive() {
 
-		return
+    return
 
-		status != null
+    status != null
 
-				&&
+        &&
 
-				"ACTIVE"
+        "ACTIVE"
 
-						.equalsIgnoreCase(status);
+            .equalsIgnoreCase(status);
 
-	}
+  }
 
 }

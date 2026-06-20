@@ -29,72 +29,72 @@ import lombok.Setter;
 
 public class ComplianceExecution
 
-		extends BaseEntity {
+    extends BaseEntity {
 
 // ========================================
 // PRIMARY KEY
 // ========================================
 
-	@Id
+  @Id
 
-	@Column(name = "execution_id")
+  @Column(name = "execution_id")
 
-	private UUID executionId;
+  private UUID executionId;
 
 // ========================================
 // REFERENCES
 // ========================================
 
-	@Column(name = "compliance_id", nullable = false)
+  @Column(name = "compliance_id", nullable = false)
 
-	private UUID complianceId;
+  private UUID complianceId;
 
-	@Column(name = "rule_id")
+  @Column(name = "rule_id")
 
-	private UUID ruleId;
+  private UUID ruleId;
 
 // ========================================
 // EXECUTION
 // ========================================
 
-	@Column(name = "execution_status")
+  @Column(name = "execution_status")
 
-	private String executionStatus;
+  private String executionStatus;
 
-	@Column(name = "execution_result", columnDefinition = "TEXT")
+  @Column(name = "execution_result", columnDefinition = "TEXT")
 
-	private String executionResult;
+  private String executionResult;
 
-	@Column(name = "triggered_rule")
+  @Column(name = "triggered_rule")
 
-	private String triggeredRule;
+  private String triggeredRule;
 
-	@Column(name = "execution_time_ms")
+  @Column(name = "execution_time_ms")
 
-	private Long executionTimeMs;
+  private Long executionTimeMs;
 
-	@Column(name = "fired_rule_count")
+  @Column(name = "fired_rule_count")
 
-	private Integer firedRuleCount;
+  private Integer firedRuleCount;
 
 // ========================================
 // FLAGS
 // ========================================
 
-	@Column(name = "success")
+  @Column(name = "success")
 
-	private Boolean success;
+  private Boolean success;
 
-	@Column(name = "notification_sent")
+  @Column(name = "notification_sent")
 
-	private Boolean notificationSent;
+  private Boolean notificationSent;
 
 // ========================================
 // TIMESTAMP
 // ========================================
 
-	@Column(name = "executed_at")
+  @Column(name = "executed_at")
 
-	private LocalDateTime executedAt;
+  private LocalDateTime executedAt;
 
 }

@@ -27,56 +27,61 @@ import com.compliance.common.kafka.event.BaseEvent;
 
 public class WorkflowTaskEvent
 
-		extends BaseEvent {
+    extends BaseEvent {
 
 // ========================================
 // WORKFLOW
 // ========================================
 
-	private UUID workflowTaskId;
+  /**
+       * 
+       */
+      private static final long serialVersionUID = -3075474565965911350L;
 
-	private String workflowId;
+  private UUID workflowTaskId;
+
+  private String workflowId;
 
 // ========================================
 // COMPLIANCE
 // ========================================
 
-	private UUID complianceId;
+  private UUID complianceId;
 
-	private UUID entityId;
+  private UUID entityId;
 
-	private UUID ruleId;
+  private UUID ruleId;
 
 // ========================================
 // TASK
 // ========================================
 
-	private String taskName;
+  private String taskName;
 
-	private String taskStatus;
+  private String taskStatus;
 
-	private String action;
+  private String action;
 
 // ========================================
 // EXECUTION
 // ========================================
 
-	private Boolean successful;
+  private Boolean successful;
 
-	private Integer retryCount;
+  private Integer retryCount;
 
 // ========================================
 // TIMESTAMP
 // ========================================
 
-	private LocalDateTime startedAt;
+  private LocalDateTime startedAt;
 
-	private LocalDateTime completedAt;
+  private LocalDateTime completedAt;
 
 // ========================================
 // DETAILS
 // ========================================
 
-	private String remarks;
+  private String remarks;
 
 }

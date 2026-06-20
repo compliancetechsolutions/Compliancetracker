@@ -18,11 +18,16 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class InvestorEntityEvent extends BaseEvent {
 
-	private UUID entityId;
+  /**
+   * 
+   */
+  private static final long serialVersionUID = 1L;
 
-	private UUID userId;
+  private UUID entityId;
 
-	private String entityName;
+  private UUID userId;
 
-	private String relationshipType;
+  private String entityName;
+
+  private String relationshipType;
 }

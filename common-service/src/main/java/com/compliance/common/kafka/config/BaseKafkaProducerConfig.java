@@ -4,163 +4,140 @@ import java.util.concurrent.CompletableFuture;
 
 import org.springframework.kafka.core.KafkaTemplate;
 
-import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RequiredArgsConstructor
 public abstract class BaseKafkaProducerConfig<T> {
 
-    // =====================================================
-    // KAFKA TEMPLATE
-    // =====================================================
+  // =====================================================
+  // KAFKA TEMPLATE
+  // =====================================================
 
-    protected final KafkaTemplate<
-            String,
-            T
-            > kafkaTemplate;
-    
-    
-    
+  protected final KafkaTemplate<String, T> kafkaTemplate;
 
-    // =====================================================
-    // TOPIC NAME
-    // =====================================================
+  // =====================================================
+  // EXPLICIT CONSTRUCTOR (not relying on Lombok
+  // @RequiredArgsConstructor, which can fail to generate
+  // on abstract generic classes depending on Lombok/JDK
+  // version mismatches)
+  // =====================================================
 
-    protected abstract String getTopicName();
+  protected BaseKafkaProducerConfig(KafkaTemplate<String, T> kafkaTemplate) {
+    this.kafkaTemplate = kafkaTemplate;
+  }
 
-    // =====================================================
-    // PUBLISH EVENT
-    // =====================================================
+  // =====================================================
+  // TOPIC NAME
+  // =====================================================
 
-    public CompletableFuture<Void> publish(
-            String key,
-            T event
-    ) {
+  protected abstract String getTopicName();
 
-        if(event==null){
+  // =====================================================
+  // PUBLISH EVENT
+  // =====================================================
 
-            throw new IllegalArgumentException(
-                    "event cannot be null"
+  public CompletableFuture<Void> publish(String key, T event) {
+
+    if (event == null) {
+
+      throw new IllegalArgumentException("event cannot be null");
+
+    }
+
+    long start = System.currentTimeMillis();
+
+    return kafkaTemplate
+
+        .send(getTopicName(), key, event)
+
+        .whenComplete(
+
+            (result, ex) -> {
+
+              if (ex != null) {
+
+                log.error(
+
+                    "Kafka publish failed topic={} key={}",
+
+                    getTopicName(),
+
+                    key,
+
+                    ex
+
             );
 
-        }
+                onPublishFailure(
 
-        long start=
-                System.currentTimeMillis();
+                    key,
 
-        return kafkaTemplate
+                    event,
 
-                .send(
-                        getTopicName(),
-                        key,
-                        event
-                )
+                    ex
 
-                .whenComplete(
+            );
 
-                        (
-                                result,
-                                ex
-                        )->{
+              }
 
-                            if(ex!=null){
+            else {
 
-                                log.error(
+                long duration =
 
-                                        "Kafka publish failed topic={} key={}",
+                    System.currentTimeMillis()
 
-                                        getTopicName(),
+                        -
 
-                                        key,
+                        start;
 
-                                        ex
+                log.info(
 
-                                );
+                    "Published topic={} partition={} offset={} duration={}ms",
 
-                                onPublishFailure(
+                    result.getRecordMetadata().topic(),
 
-                                        key,
+                    result.getRecordMetadata().partition(),
 
-                                        event,
+                    result.getRecordMetadata().offset(),
 
-                                        ex
+                    duration
 
-                                );
+            );
 
-                            }
+                onPublishSuccess(
 
-                            else{
+                    key,
 
-                                long duration=
+                    event
 
-                                        System.currentTimeMillis()
+            );
 
-                                                -
+              }
 
-                                                start;
+            }
 
-                                log.info(
+        )
 
-                                        "Published topic={} partition={} offset={} duration={}ms",
+        .thenAccept(r -> {
+        });
 
-                                        result
-                                                .getRecordMetadata()
-                                                .topic(),
+  }
+  // =====================================================
+  // SUCCESS CALLBACK
+  // =====================================================
 
-                                        result
-                                                .getRecordMetadata()
-                                                .partition(),
+  protected void onPublishSuccess(String key, T event) {
 
-                                        result
-                                                .getRecordMetadata()
-                                                .offset(),
+    // optional override
+  }
 
-                                        duration
+  // =====================================================
+  // FAILURE CALLBACK
+  // =====================================================
 
-                                );
+  protected void onPublishFailure(String key, T event, Throwable ex) {
 
-                                onPublishSuccess(
-
-                                        key,
-
-                                        event
-
-                                );
-
-                            }
-
-                        }
-
-                )
-
-                .thenAccept(
-                        r->{}
-                );
-
-    }
-    // =====================================================
-    // SUCCESS CALLBACK
-    // =====================================================
-
-    protected void onPublishSuccess(
-            String key,
-            T event
-    ) {
-
-        // optional override
-    }
-
-    // =====================================================
-    // FAILURE CALLBACK
-    // =====================================================
-
-    protected void onPublishFailure(
-            String key,
-            T event,
-            Throwable ex
-    ) {
-
-        // optional override
-    }
+    // optional override
+  }
 }
